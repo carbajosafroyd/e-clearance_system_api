@@ -3,7 +3,7 @@ from django.db.models import Count, Prefetch, Q, OuterRef, Exists
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from drf_spectacular.utils import extend_schema
@@ -680,6 +680,116 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["get"], url_path="certificate")
+    def certificate(self, request, pk=None):
+        clearance = self.get_object()
+
+        if clearance.status != StudentClearance.ClearanceStatus.COMPLETED:
+            raise PermissionDenied(
+                "Clearance certificate is only available once all clearance requirements are completed."
+            )
+
+        from django.http import HttpResponse
+        from api.clearance.services.certificate_service import generate_clearance_certificate_pdf
+
+        pdf_bytes = generate_clearance_certificate_pdf(clearance)
+        student_id_str = getattr(clearance.student, "s_studentID", str(clearance.student_id))
+        filename = f"clearance_certificate_{student_id_str}_{clearance.verification_token}.pdf"
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return response
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path=r"verify/(?P<verification_token>[^/.]+)",
+        permission_classes=[AllowAny],
+    )
+    def verify(self, request, verification_token=None):
+        import uuid
+
+        try:
+            token_uuid = uuid.UUID(verification_token)
+        except (ValueError, TypeError, AttributeError):
+            return Response(
+                {"valid": False, "detail": "Invalid verification token format."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        clearance = (
+            StudentClearance.objects.filter(verification_token=token_uuid)
+            .select_related(
+                "student",
+                "student__program",
+                "student__program__institute",
+                "clearance_type",
+            )
+            .prefetch_related(
+                "items",
+                "items__requirement",
+                "items__requirement__authorizing_role",
+                "items__requirement__authorizing_roles",
+                "items__cleared_by_user",
+            )
+            .first()
+        )
+
+        if not clearance or clearance.status != StudentClearance.ClearanceStatus.COMPLETED:
+            return Response(
+                {"valid": False, "detail": "Clearance not found or has not been completed."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        student = clearance.student
+        student_fname = getattr(student, "s_fname", "") or ""
+        student_mname = getattr(student, "s_mname", "") or ""
+        student_lname = getattr(student, "s_lname", "") or ""
+        student_suffix = getattr(student, "s_suffix", "") or ""
+        full_name_parts = [student_fname, student_mname, student_lname, student_suffix]
+        full_name = " ".join(p.strip() for p in full_name_parts if p and p.strip())
+
+        signatories = []
+        for item in clearance.items.all().order_by("requirement__order_sequence", "id"):
+            cleared_by = item.cleared_by_user
+            cleared_by_name = ""
+            if cleared_by:
+                fname = getattr(cleared_by, "first_name", "") or ""
+                lname = getattr(cleared_by, "last_name", "") or ""
+                cleared_by_name = f"{fname} {lname}".strip() or getattr(cleared_by, "username", "")
+
+            role_name = ""
+            if item.requirement.authorizing_role:
+                role_name = item.requirement.authorizing_role.name
+            elif item.requirement.authorizing_roles.exists():
+                role_name = ", ".join(r.name for r in item.requirement.authorizing_roles.all())
+
+            signatories.append(
+                {
+                    "step": item.requirement.order_sequence,
+                    "requirement": item.requirement.name,
+                    "authorizing_role": role_name or "Department Signatory",
+                    "cleared_by": cleared_by_name or "Authorized Signatory",
+                    "cleared_at": item.cleared_at,
+                }
+            )
+
+        payload = {
+            "valid": True,
+            "verification_token": str(clearance.verification_token),
+            "student_name": full_name,
+            "student_id": getattr(student, "s_studentID", ""),
+            "program": getattr(student.program, "name", ""),
+            "academic_year": clearance.clearance_type.academic_year,
+            "semester": clearance.clearance_type.semester,
+            "clearance_type": clearance.clearance_type.name,
+            "status": clearance.status,
+            "date_completed": clearance.date_completed,
+            "signatories": signatories,
+        }
+
+        return Response(payload, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="program-chair-dashboard")
     def program_chair_dashboard(self, request):

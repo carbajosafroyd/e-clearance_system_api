@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Certificate of Clearance</title>
+<style type="text/css">
+    @page {
+        size: a4 portrait;
+        margin: 2.0cm 1.8cm 1.8cm 1.8cm;
+        @frame footer_frame {
+            -pdf-frame-content: footer_content;
+            left: 1.8cm; width: 17.4cm; top: 27.5cm; height: 1.2cm;
+        }
+    }
+
+    body {
+        font-family: Helvetica, sans-serif;
+        font-size: 9.5pt;
+        color: #1F3A31;
+        line-height: 1.35;
+    }
+
+    .header-table {
+        width: 100%;
+        text-align: center;
+        border-bottom: 2px solid #065F46;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+
+    .school-name {
+        font-size: 13pt;
+        font-weight: bold;
+        color: #065F46;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .institute-name {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #047857;
+        margin-top: 2px;
+    }
+
+    .doc-title {
+        font-size: 16pt;
+        font-weight: bold;
+        text-align: center;
+        color: #065F46;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 14px;
+        margin-bottom: 4px;
+    }
+
+    .doc-subtitle {
+        text-align: center;
+        font-size: 10pt;
+        color: #5F7A6E;
+        font-style: italic;
+        margin-bottom: 16px;
+    }
+
+    .cert-body {
+        text-align: justify;
+        margin-bottom: 16px;
+        font-size: 10pt;
+    }
+
+    .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 18px;
+        background-color: #F8FAF9;
+        border: 1px solid #D1FAE5;
+    }
+
+    .info-table td {
+        padding: 6px 10px;
+        vertical-align: middle;
+    }
+
+    .info-label {
+        width: 25%;
+        font-weight: bold;
+        color: #065F46;
+        font-size: 9pt;
+        text-transform: uppercase;
+    }
+
+    .info-value {
+        width: 75%;
+        font-size: 10pt;
+        color: #1F3A31;
+    }
+
+    .section-title {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #065F46;
+        margin-top: 12px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid #D1FAE5;
+        padding-bottom: 4px;
+    }
+
+    .signatory-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 18px;
+    }
+
+    .signatory-table th {
+        background-color: #047857;
+        color: #FFFFFF;
+        font-size: 8.5pt;
+        font-weight: bold;
+        text-align: left;
+        padding: 6px 8px;
+        text-transform: uppercase;
+    }
+
+    .signatory-table td {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 6px 8px;
+        font-size: 8.5pt;
+    }
+
+    .status-badge {
+        font-weight: bold;
+        color: #065F46;
+    }
+
+    .verification-box {
+        width: 100%;
+        border: 1px solid #047857;
+        background-color: #ECFDF5;
+        margin-top: 10px;
+        padding: 8px;
+    }
+
+    .verification-box td {
+        vertical-align: middle;
+    }
+
+    .verify-code {
+        font-family: Courier, monospace;
+        font-size: 8.5pt;
+        color: #065F46;
+        font-weight: bold;
+    }
+
+    .verify-note {
+        font-size: 8pt;
+        color: #5F7A6E;
+        line-height: 1.25;
+    }
+
+    #footer_content {
+        text-align: center;
+        font-size: 8pt;
+        color: #9CA3AF;
+        border-top: 1px solid #E5E7EB;
+        padding-top: 4px;
+    }
+</style>
+</head>
+<body>
+
+<table class="header-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td>
+            <div class="school-name">{{ school_name }}</div>
+            <div class="institute-name">{{ institute_name }}</div>
+            <div style="font-size: 8.5pt; color: #5F7A6E; margin-top: 2px;">{{ school_location }}</div>
+        </td>
+    </tr>
+</table>
+
+<div class="doc-title">Certificate of Clearance</div>
+<div class="doc-subtitle">{{ clearance_type_name }} &bull; {{ semester }} Semester, Academic Year {{ academic_year }}</div>
+
+<div class="cert-body">
+    This certifies that the student named below has officially cleared all department and institutional deficiencies, obligations, and accountabilities for the indicated academic term.
+</div>
+
+<table class="info-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td class="info-label">Student Name:</td>
+        <td class="info-value"><strong>{{ student_name }}</strong></td>
+    </tr>
+    <tr>
+        <td class="info-label">Student ID:</td>
+        <td class="info-value"><strong>{{ student_number }}</strong></td>
+    </tr>
+    <tr>
+        <td class="info-label">Degree Program:</td>
+        <td class="info-value">{{ program_name }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Year Level:</td>
+        <td class="info-value">{{ year_level }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Date Completed:</td>
+        <td class="info-value">{{ date_completed_formatted }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Official Status:</td>
+        <td class="info-value"><span class="status-badge">&#x2714; COMPLETED AND CLEARED</span></td>
+    </tr>
+</table>
+
+<div class="section-title">Signatory Authorization &amp; Clearance Endorsements</div>
+
+<table class="signatory-table" cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th style="width: 8%;">Step</th>
+            <th style="width: 32%;">Requirement</th>
+            <th style="width: 25%;">Authorizing Role</th>
+            <th style="width: 20%;">Cleared By</th>
+            <th style="width: 15%;">Date Cleared</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td style="text-align: center;">{{ item.order_sequence }}</td>
+            <td><strong>{{ item.requirement_name }}</strong></td>
+            <td>{{ item.authorizing_role_name }}</td>
+            <td>{{ item.cleared_by_name|default:"Authorized Signatory" }}</td>
+            <td>{{ item.cleared_at_formatted|default:"Cleared" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table class="verification-box" cellpadding="0" cellspacing="0">
+    <tr>
+        <td style="width: 120px; text-align: center; padding-right: 12px;">
+            <img src="{{ qr_code_data_uri }}" width="105" height="105" alt="QR Verification Code" />
+        </td>
+        <td>
+            <div style="font-weight: bold; color: #065F46; font-size: 9.5pt; margin-bottom: 3px;">
+                Official Digital Verification
+            </div>
+            <div class="verify-note" style="margin-bottom: 4px;">
+                This certificate was generated digitally by the DNSC E-Clearance System. Scan the QR code or verify online:
+            </div>
+            <div class="verify-code">
+                Token: {{ verification_token }}
+            </div>
+            <div class="verify-note" style="margin-top: 3px; font-size: 7.5pt; word-break: break-all;">
+                Verify URL: {{ verify_url }}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div id="footer_content">
+    Document generated on {{ generated_at_formatted }} &bull; Page <pdf:pagenumber> of <pdf:pagecount> &bull; E-Clearance System
+</div>
+
+</body>
+</html>

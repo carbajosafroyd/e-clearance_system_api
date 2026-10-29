@@ -375,12 +375,12 @@ Milestone 3: Deficiency Resolution & Proof Uploads [COMPLETED]
   ├── [x] 3.3 Add notification hooks on has_issue and proof upload
   └── [x] 3.4 Integrate AuditLogService on every status transition
 
-Milestone 4: PDF Certification, Verification & Testing (Days 6–7)
-  ├── 4.1 Create certificate HTML template in core/templates/clearance/
-  ├── 4.2 Implement GET certificate endpoint with segno QR generation
-  ├── 4.3 Implement public GET verify/<verification_token>/ endpoint
-  ├── 4.4 Prune api/urls.py sibling routes and update seed_all
-  └── 4.5 Write comprehensive unit test suite covering end-to-end clearance lifecycle
+Milestone 4: PDF Certification, Verification & Testing [COMPLETED]
+  ├── [x] 4.1 Create certificate HTML template in api/clearance/templates/clearance/certificate.html
+  ├── [x] 4.2 Implement GET certificate endpoint with segno QR generation
+  ├── [x] 4.3 Implement public GET verify/<verification_token>/ endpoint
+  ├── [x] 4.4 Prune api/urls.py sibling routes and update seed_all
+  └── [x] 4.5 Write comprehensive unit test suite covering end-to-end clearance lifecycle
 ```
 
 ---
@@ -388,12 +388,13 @@ Milestone 4: PDF Certification, Verification & Testing (Days 6–7)
 # 4. Verification, Quality Assurance & Security Checklist
 
 ### 1. Test Suite Coverage Target
-* `test_sequential_signing_enforced`: Verifies that attempting to clear Step 3 before Step 2 raises a `400 ValidationError`.
-* `test_completion_state_machine`: Verifies that when the final item is cleared, `StudentClearance.status` transitions to `completed` and sets `date_completed`.
-* `test_signatory_immutability`: Verifies that `cleared_by_user` cannot be spoofed in request JSON and always matches `request.user`.
-* `test_proof_upload_ownership`: Verifies that Student B cannot upload proof to Student A's clearance item.
-* `test_certificate_access_control`: Verifies that incomplete clearances return `403 Forbidden` when requesting certificate download.
-* `test_qr_verification`: Verifies public lookup returns accurate signatory records for valid tokens and 404 for invalid tokens.
+* [x] `test_sequential_signing_blocks_out_of_order_approval`: Verifies that attempting to clear step 2 before step 1 raises a `400 ValidationError`.
+* [x] `test_completion_state_machine`: Verifies that when all items are cleared, `StudentClearance.status` transitions to `completed` and sets `date_completed`.
+* [x] `test_audit_fields_cannot_be_tampered_by_client`: Verifies that `cleared_by_user` cannot be spoofed in request JSON and always matches `request.user`.
+* [x] `test_other_student_cannot_upload_proof_to_different_student`: Verifies that Student B cannot upload proof to Student A's clearance item.
+* [x] `test_certificate_forbidden_if_incomplete`: Verifies that incomplete clearances return `403 Forbidden` when requesting certificate download.
+* [x] `test_public_verification_endpoint`: Verifies public lookup returns accurate signatory records for valid tokens and 404 for invalid tokens.
+* [x] `test_full_clearance_lifecycle_e2e`: Verifies end-to-end clearance lifecycle from issuance to signing, completion, PDF generation, and QR verification.
 
 ### 2. Security Audits
 - [x] Password pepper hashing configured and active (`PASSWORD_PEPPERS` in `.env`).

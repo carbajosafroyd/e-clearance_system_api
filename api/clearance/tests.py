@@ -2,6 +2,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -19,6 +20,21 @@ from api.schools.models import School
 from api.students.models import Student
 from api.users.models import User
 from api.utils.cloudinary.cloudinary_utils import UploadedImage
+
+
+def _extract_results(response_data):
+    if isinstance(response_data, list):
+        return response_data
+    if isinstance(response_data, dict):
+        if "data" in response_data:
+            inner = response_data["data"]
+            if isinstance(inner, list):
+                return inner
+            if isinstance(inner, dict) and "results" in inner:
+                return inner["results"]
+        if "results" in response_data:
+            return response_data["results"]
+    return response_data
 
 
 class ClearanceAPITests(TestCase):
@@ -678,3 +694,228 @@ class DeficiencyAndProofTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already cleared", str(response.data))
+
+
+class CertificateAndVerificationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        self.school = School.objects.create(school_name="DNSC", short_name="DNSC", location="Panabo City")
+        self.institute = Institute.objects.create(institute_name="Institute of Computing", acronym="IC", school=self.school)
+        self.program = Program.objects.create(name="BS in Information Technology", acronym="BSIT", institute=self.institute)
+
+        self.admin_group, _ = Group.objects.get_or_create(name=Roles.CLEARANCE_ADMIN)
+        self.librarian_group, _ = Group.objects.get_or_create(name=Roles.LIBRARIAN)
+        self.dean_group, _ = Group.objects.get_or_create(name=Roles.DEAN)
+        self.student_group, _ = Group.objects.get_or_create(name=Roles.STUDENT)
+
+        self.librarian_user = User.objects.create_user(
+            username="librarian_cert",
+            email="librarian_cert@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+            is_staff=True,
+        )
+        self.librarian_user.groups.add(self.librarian_group)
+
+        self.dean_user = User.objects.create_user(
+            username="dean_cert",
+            email="dean_cert@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+            is_staff=True,
+        )
+        self.dean_user.groups.add(self.dean_group)
+
+        self.student_user = User.objects.create_user(
+            username="student_cert",
+            email="student_cert@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.student_user.groups.add(self.student_group)
+        self.student = Student.objects.create(
+            s_studentID="2024777777",
+            s_fname="Crisostomo",
+            s_lname="Ibarra",
+            s_lvl=4,
+            program=self.program,
+            user=self.student_user,
+        )
+
+        self.clearance_type = ClearanceType.objects.create(
+            institute=self.institute,
+            name="Graduating Clearance",
+            academic_year="2026-2027",
+            semester="2nd",
+            is_active=True,
+            is_issued=True,
+            target_year_levels=[4],
+        )
+
+        self.req1 = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Library Clearance",
+            authorizing_role=self.librarian_group,
+            order_sequence=1,
+        )
+        self.req2 = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Dean Clearance",
+            authorizing_role=self.dean_group,
+            order_sequence=2,
+        )
+
+        self.student_clearance = StudentClearance.objects.create(
+            student=self.student,
+            clearance_type=self.clearance_type,
+            status=StudentClearance.ClearanceStatus.PENDING,
+        )
+
+        self.item1 = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance,
+            requirement=self.req1,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+        self.item2 = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance,
+            requirement=self.req2,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+
+    def test_certificate_forbidden_if_incomplete(self):
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(f"/api/v1/student-clearances/{self.student_clearance.id}/certificate/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("only available once all clearance requirements are completed", str(response.data))
+
+    def test_certificate_download_succeeds_when_completed(self):
+        # Clear step 1
+        self.client.force_authenticate(user=self.librarian_user)
+        self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item1.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        # Clear step 2
+        self.client.force_authenticate(user=self.dean_user)
+        self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item2.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.COMPLETED)
+
+        # Student requests certificate
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(f"/api/v1/student-clearances/{self.student_clearance.id}/certificate/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("inline; filename=", response["Content-Disposition"])
+        # Verify PDF magic bytes
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_public_verification_endpoint(self):
+        # Clear both items
+        self.item1.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item1.cleared_by_user = self.librarian_user
+        self.item1.cleared_at = timezone.now()
+        self.item1.save()
+
+        self.item2.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item2.cleared_by_user = self.dean_user
+        self.item2.cleared_at = timezone.now()
+        self.item2.save()
+
+        self.student_clearance.status = StudentClearance.ClearanceStatus.COMPLETED
+        self.student_clearance.date_completed = timezone.now()
+        self.student_clearance.save()
+
+        # Unauthenticated request to verify endpoint
+        self.client.logout()
+        token = str(self.student_clearance.verification_token)
+        response = self.client.get(f"/api/v1/student-clearances/verify/{token}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["valid"])
+        self.assertEqual(response.data["student_id"], "2024777777")
+        self.assertEqual(response.data["status"], "completed")
+        self.assertEqual(len(response.data["signatories"]), 2)
+        self.assertEqual(response.data["signatories"][0]["requirement"], "Library Clearance")
+
+    def test_public_verification_invalid_token(self):
+        self.client.logout()
+        import uuid
+        random_token = str(uuid.uuid4())
+        response = self.client.get(f"/api/v1/student-clearances/verify/{random_token}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(response.data["valid"])
+
+    def test_full_clearance_lifecycle_e2e(self):
+        # 1. Student checks my clearances
+        self.client.force_authenticate(user=self.student_user)
+        resp_my = self.client.get("/api/v1/student-clearances/my-clearances/")
+        self.assertEqual(resp_my.status_code, status.HTTP_200_OK)
+        results = _extract_results(resp_my.data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], StudentClearance.ClearanceStatus.PENDING)
+
+        # 2. Student tries to download certificate before completion -> rejected
+        resp_cert_early = self.client.get(
+            f"/api/v1/student-clearances/{self.student_clearance.id}/certificate/"
+        )
+        self.assertEqual(resp_cert_early.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3. Dean tries to sign Step 2 first -> blocked by sequential validation
+        self.client.force_authenticate(user=self.dean_user)
+        resp_dean_early = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item2.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(resp_dean_early.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Sequential clearance locked", str(resp_dean_early.data))
+
+        # 4. Librarian signs Step 1
+        self.client.force_authenticate(user=self.librarian_user)
+        resp_lib = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item1.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(resp_lib.status_code, status.HTTP_200_OK)
+
+        # Student clearance moves to in_progress
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.IN_PROGRESS)
+
+        # 5. Dean now signs Step 2 -> succeeds
+        self.client.force_authenticate(user=self.dean_user)
+        resp_dean = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item2.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(resp_dean.status_code, status.HTTP_200_OK)
+
+        # Student clearance automatically transitions to completed
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.COMPLETED)
+        self.assertIsNotNone(self.student_clearance.date_completed)
+
+        # 6. Student downloads certificate -> returns valid PDF
+        self.client.force_authenticate(user=self.student_user)
+        resp_cert = self.client.get(
+            f"/api/v1/student-clearances/{self.student_clearance.id}/certificate/"
+        )
+        self.assertEqual(resp_cert.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_cert["Content-Type"], "application/pdf")
+        self.assertTrue(resp_cert.content.startswith(b"%PDF"))
+
+        # 7. Public QR verify lookup succeeds without auth
+        self.client.logout()
+        token = str(self.student_clearance.verification_token)
+        resp_verify = self.client.get(f"/api/v1/student-clearances/verify/{token}/")
+        self.assertEqual(resp_verify.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp_verify.data["valid"])
+        self.assertEqual(resp_verify.data["status"], "completed")
+        self.assertEqual(len(resp_verify.data["signatories"]), 2)
