@@ -1,10 +1,16 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from api.rbac.roles import Roles, CLEARANCE_SIGNATORY_ROLES
+from api.rbac.scoping import is_school_wide, is_student_only, institute_in_scope
 
 CLEARANCE_ADMIN_GROUPS = {
+    Roles.SCHOOL_ADMIN.lower(),
+    Roles.INSTITUTE_ADMIN.lower(),
+    Roles.CLEARANCE_ADMIN.lower(),
     "school admins",
     "collection management system admins",
     "clearance management system admins",
     "admin",
+    "superadmin",
 }
 
 CLEARANCE_NON_SIGNATORY_GROUPS = {
@@ -13,6 +19,8 @@ CLEARANCE_NON_SIGNATORY_GROUPS = {
 }
 
 CLEARANCE_SIGNATORY_GROUPS = {
+    r.lower() for r in CLEARANCE_SIGNATORY_ROLES
+} | {
     "librarian",
     "librarians",
     "dean",
@@ -67,13 +75,18 @@ def get_user_student(user):
 def is_clearance_admin(user) -> bool:
     if not user or not user.is_authenticated:
         return False
-
+    if getattr(user, "is_superuser", False) or is_school_wide(user):
+        return True
+    if user.has_perm("clearance.change_clearancetype") or user.has_perm("clearance.issue_clearancetype"):
+        return True
     return bool(user_group_names(user) & CLEARANCE_ADMIN_GROUPS)
 
 
 def is_clearance_signatory(user) -> bool:
     if not user or not user.is_authenticated:
         return False
+    if user.has_perm("clearance.sign_studentclearanceitem"):
+        return True
 
     names = user_group_names(user)
 
@@ -90,7 +103,7 @@ def can_access_clearance_scope(user) -> bool:
     if not user or not user.is_authenticated:
         return False
 
-    if getattr(user, "is_superuser", False):
+    if getattr(user, "is_superuser", False) or is_school_wide(user):
         return True
 
     if is_clearance_admin(user):
@@ -219,7 +232,7 @@ class IsClearanceAdminOrReadOnly(BasePermission):
                 return is_own_student_clearance_object(user, obj)
 
             if can_access_clearance_scope(user):
-                if obj_institute is None:
+                if obj_institute is None or is_school_wide(user):
                     return True
                 return obj_institute == user_institute
 
@@ -228,7 +241,7 @@ class IsClearanceAdminOrReadOnly(BasePermission):
         if not is_clearance_admin(user):
             return False
 
-        if obj_institute is None:
+        if obj_institute is None or is_school_wide(user):
             return True
 
         return obj_institute == user_institute
@@ -247,7 +260,7 @@ class CanAccessInstituteClearanceData(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        if getattr(user, "is_superuser", False):
+        if getattr(user, "is_superuser", False) or is_school_wide(user):
             return True
 
         if get_user_student(user):

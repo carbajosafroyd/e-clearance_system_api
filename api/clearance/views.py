@@ -31,6 +31,7 @@ from api.clearance.serializers import (
     GroupSlimSerializer,
 )
 from api.clearance.services.issuance_service import issue_clearance_to_target_students
+from api.rbac.scoping import is_school_wide, is_student_only, scope_queryset
 from .permissions import (
     IsClearanceAdminOrReadOnly,
     CanAccessInstituteClearanceData,
@@ -242,40 +243,44 @@ class ClearanceTypeViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
 
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return self.queryset.none()
 
-        if getattr(user, "is_superuser", False):
-            return self.queryset
-
-        if hasattr(user, "student"):
-            student = user.student
-            return self.queryset.filter(
+        if is_student_only(user):
+            student = getattr(user, "student", None)
+            if not student:
+                return self.queryset.none()
+            qs = self.queryset.filter(
                 is_active=True,
                 is_issued=True,
                 institute_id=student.program.institute_id,
-                target_year_levels__contains=[student.s_lvl],
+            )
+            from django.db import connection
+            if connection.vendor == "sqlite":
+                matching_ids = [ct.id for ct in qs if student.s_lvl in (ct.target_year_levels or [])]
+                return qs.filter(id__in=matching_ids)
+            return qs.filter(target_year_levels__contains=[student.s_lvl])
+
+        return scope_queryset(
+            self.queryset,
+            user,
+            institute_path="institute",
+            school_paths=("institute__school",),
         )
-
-        if can_access_clearance_scope(user):
-            institute_id = get_user_institute_id(user)
-            if institute_id is None:
-                return self.queryset.none()
-            return self.queryset.filter(institute_id=institute_id)
-
-        return self.queryset.none()
 
     def perform_create(self, serializer):
         user = self.request.user
 
-        if not (user.is_superuser or is_clearance_admin(user)):
+        if not (user.is_superuser or is_school_wide(user) or is_clearance_admin(user)):
             raise ValidationError({"detail": "Only clearance admins can create clearance types."})
 
         user_institute = getattr(user, "institute", None)
         user_institute_id = getattr(user, "institute_id", None)
 
-        if not user.is_superuser and not user_institute_id:
+        if not user.is_superuser and not is_school_wide(user) and not user_institute_id:
             raise ValidationError({"detail": "Your account has no institute assigned."})
 
-        if user.is_superuser:
+        if user.is_superuser or is_school_wide(user):
             serializer.save(updated_by=user)
             return
 
@@ -443,26 +448,33 @@ class ClearanceRequirementViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
 
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return self.queryset.none()
 
-        if getattr(user, "is_superuser", False):
-            return self.queryset
-
-        if hasattr(user, "student"):
-            student = user.student
-            return self.queryset.filter(
+        if is_student_only(user):
+            student = getattr(user, "student", None)
+            if not student:
+                return self.queryset.none()
+            qs = self.queryset.filter(
                 clearance_type__is_active=True,
                 clearance_type__is_issued=True,
                 clearance_type__institute_id=student.program.institute_id,
-                clearance_type__target_year_levels__contains=[student.s_lvl],
+            )
+            from django.db import connection
+            if connection.vendor == "sqlite":
+                matching_ids = [
+                    req.id for req in qs
+                    if student.s_lvl in (req.clearance_type.target_year_levels or [])
+                ]
+                return qs.filter(id__in=matching_ids)
+            return qs.filter(clearance_type__target_year_levels__contains=[student.s_lvl])
+
+        return scope_queryset(
+            self.queryset,
+            user,
+            institute_path="clearance_type__institute",
+            school_paths=("clearance_type__institute__school",),
         )
-
-        if can_access_clearance_scope(user):
-            institute_id = get_user_institute_id(user)
-            if institute_id is None:
-                return self.queryset.none()
-            return self.queryset.filter(clearance_type__institute_id=institute_id)
-
-        return self.queryset.none()
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -553,33 +565,32 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
 
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return self.queryset.none()
 
-        if user.is_superuser:
-            return self.queryset
-
-        if hasattr(user, "student"):
-            return self.queryset.filter(student=user.student)
-
-        if is_clearance_admin(user) or is_clearance_signatory(user) or is_program_chair_user(user):
-            institute_id = get_user_institute_id(user)
-            if institute_id is None:
+        if is_student_only(user):
+            student = getattr(user, "student", None)
+            if not student:
                 return self.queryset.none()
+            return self.queryset.filter(student=student)
 
-            qs = self.queryset.filter(
-            student__program__institute_id=institute_id,
+        qs = scope_queryset(
+            self.queryset,
+            user,
+            institute_path="student__program__institute",
+            school_paths=("student__program__institute__school",),
         )
 
-            if is_clearance_admin(user) or is_program_chair_user(user):
-                return qs.distinct()
+        if user.is_superuser or is_school_wide(user) or is_clearance_admin(user) or is_program_chair_user(user):
+            return qs.distinct()
 
+        if is_clearance_signatory(user):
             user_group_ids = list(user.groups.values_list("id", flat=True))
             if user_group_ids:
                 return qs.filter(
                     Q(items__requirement__authorizing_role_id__in=user_group_ids)
                     | Q(items__requirement__authorizing_roles__id__in=user_group_ids)
-            ).distinct()
-
-            return qs.none()
+                ).distinct()
 
         return self.queryset.none()
 
@@ -773,33 +784,32 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
 
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return self.queryset.none()
 
-        if user.is_superuser:
-            return self.queryset
-
-        if hasattr(user, "student"):
-            return self.queryset.filter(student_clearance__student=user.student)
-
-        if is_clearance_admin(user) or is_clearance_signatory(user):
-            institute_id = get_user_institute_id(user)
-            if institute_id is None:
+        if is_student_only(user):
+            student = getattr(user, "student", None)
+            if not student:
                 return self.queryset.none()
+            return self.queryset.filter(student_clearance__student=student)
 
-            qs = self.queryset.filter(
-            student_clearance__student__program__institute_id=institute_id,
+        qs = scope_queryset(
+            self.queryset,
+            user,
+            institute_path="student_clearance__student__program__institute",
+            school_paths=("student_clearance__student__program__institute__school",),
         )
 
-            if is_clearance_admin(user):
-                return qs.distinct()
+        if user.is_superuser or is_school_wide(user) or is_clearance_admin(user):
+            return qs.distinct()
 
+        if is_clearance_signatory(user):
             user_group_ids = list(user.groups.values_list("id", flat=True))
             if user_group_ids:
                 return qs.filter(
-                Q(requirement__authorizing_role_id__in=user_group_ids)
-                | Q(requirement__authorizing_roles__id__in=user_group_ids)
-            ).distinct()
-
-            return qs.none()
+                    Q(requirement__authorizing_role_id__in=user_group_ids)
+                    | Q(requirement__authorizing_roles__id__in=user_group_ids)
+                ).distinct()
 
         return self.queryset.none()
 

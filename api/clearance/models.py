@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
@@ -26,6 +27,11 @@ class ClearanceType(ActorStampedModel):
 )
     name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
+    clearance_category = models.CharField(
+        max_length=30,
+        choices=[("semestral", "Semestral"), ("graduation", "Graduation"), ("transfer", "Transfer")],
+        default="semestral",
+    )
     academic_year = models.CharField(max_length=20)
     semester = models.CharField(max_length=20)
     is_active = models.BooleanField(default=True)
@@ -122,6 +128,14 @@ class StudentClearance(ActorStampedModel):
     )
     date_initiated = models.DateTimeField(auto_now_add=True)
     date_completed = models.DateTimeField(null=True, blank=True)
+    verification_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+        db_index=True,
+    )
     is_enrolled = models.BooleanField(default=False)
     enrolled_at = models.DateTimeField(null=True, blank=True)
     enrolled_by_user = models.ForeignKey(
@@ -139,6 +153,7 @@ class StudentClearance(ActorStampedModel):
             models.Index(fields=["student", "status"]),
             models.Index(fields=["clearance_type", "status"]),
             models.Index(fields=["clearance_type", "is_enrolled"]),
+            models.Index(fields=["verification_token"]),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -179,6 +194,10 @@ class StudentClearanceItem(ActorStampedModel):
         blank=True,
     )
     remarks = models.TextField(null=True, blank=True)
+    proof_attachment = models.CharField(max_length=255, null=True, blank=True)
+    cloudinary_version = models.PositiveSmallIntegerField(null=True, blank=True)
+    proof_notes = models.TextField(null=True, blank=True)
+    proof_uploaded_at = models.DateTimeField(null=True, blank=True)
     cleared_by_user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
