@@ -332,15 +332,14 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": os.getenv("API_TITLE", "DNSC SYSTEMS API"),
+    "TITLE": os.getenv("API_TITLE", "E-CLEARANCE SYSTEM API"),
     "DESCRIPTION": os.getenv(
-        "API_DESCRIPTION", "This API powers the backend for our system."
+        "API_DESCRIPTION", "Institute of Computing E-Clearance System API"
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,  # hide raw schema from swagger
     "CONTACT": {
-        "url": os.getenv("API_CONTACT_URL", ""),
-        "email": os.getenv("API_CONTACT_EMAIL", ""),
+        "email": os.getenv("API_CONTACT_EMAIL", "froydcarbajosa14@gmail.com"),
     },
     "LICENSE": {"name": "MIT"},
     "ENUM_NAME_OVERRIDES": {
