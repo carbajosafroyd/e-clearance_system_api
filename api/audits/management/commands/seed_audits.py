@@ -15,23 +15,21 @@ from django.utils import timezone
 from api.audits.models import AuditLog
 from api.audits.services import AuditLogService
 from api.audits.utils import resolve_actor
-from api.fees.models import Fee
-from api.payments.models import Payment
+from api.clearance.models import StudentClearanceItem
 from api.rbac.roles import Roles
 from api.seeding.support import SeedCommand
 from api.users.models import User
 
-#: (entity_type, action, system) triples worth having in the trail.
+#: (entity_type, action, system) triples worth having in the clearance trail.
 SHAPES = [
-    ("Fee", AuditLog.Action.UPDATE, AuditLog.System.COLLECTION),
-    ("Fee", AuditLog.Action.DELETE, AuditLog.System.COLLECTION),
-    ("Payment", AuditLog.Action.CANCEL, AuditLog.System.COLLECTION),
-    ("PaymentSubmission", AuditLog.Action.APPROVE, AuditLog.System.COLLECTION),
-    ("PaymentSubmission", AuditLog.Action.REJECT, AuditLog.System.COLLECTION),
-    ("LockerSubscription", AuditLog.Action.CREATE, AuditLog.System.LOCKER),
-    ("AttendanceRecord", AuditLog.Action.UPDATE, AuditLog.System.ATTENDANCE),
+    ("ClearanceType", AuditLog.Action.CREATE, AuditLog.System.CLEARANCE),
+    ("ClearanceType", AuditLog.Action.UPDATE, AuditLog.System.CLEARANCE),
+    ("ClearanceRequirement", AuditLog.Action.CREATE, AuditLog.System.CLEARANCE),
+    ("StudentClearance", AuditLog.Action.UPDATE, AuditLog.System.CLEARANCE),
     ("StudentClearanceItem", AuditLog.Action.APPROVE, AuditLog.System.CLEARANCE),
+    ("StudentClearanceItem", AuditLog.Action.REJECT, AuditLog.System.CLEARANCE),
     ("UserRoles", AuditLog.Action.UPDATE, AuditLog.System.PLATFORM),
+    ("SystemSetting", AuditLog.Action.UPDATE, AuditLog.System.PLATFORM),
 ]
 
 ENTRIES_PER_SHAPE = 4
@@ -40,7 +38,7 @@ ENTRIES_PER_SHAPE = 4
 class Command(SeedCommand):
     seed_name = "audit logs"
     help = "Create a short demo audit trail."
-    depends_on = ("seed_users",)
+    depends_on = ("seed_users", "seed_clearance")
 
     def reset(self, **options):
         deleted, _ = AuditLog.objects.all().delete()
@@ -50,8 +48,8 @@ class Command(SeedCommand):
         actors = list(
             User.objects.filter(
                 groups__name__in=[
-                    Roles.CMS_ADMIN,
-                    Roles.CMS_STAFF,
+                    Roles.CLEARANCE_ADMIN,
+                    Roles.INSTITUTE_ADMIN,
                     Roles.SCHOOL_ADMIN,
                 ]
             ).order_by("id")
@@ -60,16 +58,12 @@ class Command(SeedCommand):
             self.warn("no staff accounts; run `python manage.py seed_users` first")
             return
 
-        # The trail has no natural key to get_or_create on, so idempotency
-        # is a count check: once it holds what this seeder would produce,
-        # there is nothing to add.
         wanted = len(SHAPES) * ENTRIES_PER_SHAPE * self.scale
         if AuditLog.objects.count() >= wanted:
             self.info(f"audit trail already holds {wanted}+ entries; nothing to do")
             return
 
-        fee_ids = list(Fee.objects.values_list("id", flat=True)[:100]) or [1]
-        payment_ids = list(Payment.objects.values_list("id", flat=True)[:100]) or [1]
+        item_ids = list(StudentClearanceItem.objects.values_list("id", flat=True)[:100]) or [1]
 
         created = 0
         now = timezone.now()
@@ -78,12 +72,7 @@ class Command(SeedCommand):
             for index in range(ENTRIES_PER_SHAPE * self.scale):
                 actor = self.pick(actors)
                 actor_type, actor_id = resolve_actor(actor)
-
-                entity_id = (
-                    self.pick(payment_ids)
-                    if entity_type == "Payment"
-                    else self.pick(fee_ids)
-                )
+                entity_id = self.pick(item_ids)
 
                 entry = AuditLogService.log_action(
                     system=system,
@@ -96,8 +85,6 @@ class Command(SeedCommand):
                     new_values={"status": str(action)},
                 )
 
-                # created_at is auto_now_add, so the spread across the last
-                # fortnight has to be applied afterwards with an update.
                 AuditLog.objects.filter(pk=entry.pk).update(
                     created_at=now - timedelta(days=index % 14, hours=index)
                 )

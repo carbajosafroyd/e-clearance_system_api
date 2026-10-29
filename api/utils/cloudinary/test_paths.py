@@ -12,7 +12,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 
 from api.institutes.models import Institute
-from api.posts.models import Post
 from api.programs.models import Program
 from api.schools.models import School
 from api.students.models import Student
@@ -66,26 +65,14 @@ class FolderForTests(SimpleTestCase):
         self.assertEqual(folder_for(self.school, Kind.LOGOS), "codex_systems/schools/1/logos")
         self.assertEqual(folder_for(self.school, "backgrounds"), "codex_systems/schools/1/backgrounds")
         self.assertEqual(folder_for(self.institute, Kind.LOGOS), "codex_systems/schools/1/institutes/2/logos")
-        self.assertEqual(
-            folder_for(self.institute, Kind.GCASH_ACCOUNTS), "codex_systems/schools/1/institutes/2/gcash_accounts"
-        )
 
     def test_student_uploads_sit_under_the_student(self):
         self.assertEqual(
-            folder_for(self.student, Kind.PAYMENTS), "codex_systems/schools/1/institutes/2/students/1234/payments"
+            folder_for(self.student, Kind.CLEARANCE_PROOFS), "codex_systems/schools/1/institutes/2/students/1234/clearance_proofs"
         )
         self.assertEqual(
             folder_for(self.student, Kind.PROFILES), "codex_systems/schools/1/institutes/2/students/1234/profiles"
         )
-
-    def test_a_post_is_its_own_folder(self):
-        post = Post(pk=9, institute=self.institute, user=_user())
-        self.assertEqual(folder_for(post, Kind.POSTS), "codex_systems/schools/1/institutes/2/posts/9")
-        with self.assertRaises(ValueError):
-            folder_for(post, Kind.PROFILES)
-
-    def test_a_post_without_an_institute_keeps_the_flat_shape(self):
-        self.assertEqual(folder_for(Post(pk=9, user=_user()), Kind.POSTS), "posts/9")
 
     def test_an_unknown_kind_or_owner_is_refused(self):
         with self.assertRaises(ValueError):
@@ -149,8 +136,6 @@ class TagTests(SimpleTestCase):
             tags_for(self.student),
             ["school:1", "institute:2", "student:1234", "program:BSIT", "year:3", "set:B"],
         )
-        post = Post(pk=9, institute=self.institute, user=_user())
-        self.assertEqual(tags_for(post), ["school:1", "institute:2", "post:9"])
 
     def test_user_tags_follow_the_folder(self):
         with patch.object(paths, "student_of", return_value=None):
@@ -189,24 +174,19 @@ class DescribePathTests(SimpleTestCase):
         self.school, self.institute, self.program, self.student = _fixtures()
 
     def test_a_tree_id_reads_back_to_its_owner(self):
-        info = describe_path(folder_for(self.student, Kind.PAYMENTS) + "/abc123")
+        info = describe_path(folder_for(self.student, Kind.CLEARANCE_PROOFS) + "/abc123")
         self.assertFalse(info.legacy)
         self.assertEqual((info.school, info.institute, info.student), (1, 2, 1234))
-        self.assertEqual((info.kind, info.file), (Kind.PAYMENTS, "abc123"))
+        self.assertEqual((info.kind, info.file), (Kind.CLEARANCE_PROOFS, "abc123"))
         self.assertEqual(info.owner, "student 1234 (school 1, institute 2)")
 
-        info = describe_path(folder_for(self.institute, Kind.GCASH_ACCOUNTS) + "/qr1")
-        self.assertEqual((info.school, info.institute, info.student, info.kind), (1, 2, None, Kind.GCASH_ACCOUNTS))
+        info = describe_path(folder_for(self.institute, Kind.LOGOS) + "/qr1")
+        self.assertEqual((info.school, info.institute, info.student, info.kind), (1, 2, None, Kind.LOGOS))
         self.assertEqual(info.owner, "institute 2 (school 1)")
 
         info = describe_path(folder_for(self.school, Kind.LOGOS) + "/l")
         self.assertEqual((info.school, info.institute, info.kind), (1, None, Kind.LOGOS))
         self.assertEqual(info.owner, "school 1")
-
-        post = Post(pk=9, institute=self.institute, user=_user())
-        info = describe_path(folder_for(post, Kind.POSTS) + "/v1")
-        self.assertEqual((info.post, info.kind, info.file), (9, Kind.POSTS, "v1"))
-        self.assertEqual(info.owner, "post 9 (school 1, institute 2)")
 
         info = describe_path("codex_systems/superadmin/profiles/me")
         self.assertEqual((info.root, info.kind, info.owner), ("codex_systems/superadmin", Kind.PROFILES, "superadmin"))

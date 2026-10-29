@@ -1,5 +1,5 @@
 """
-Seed notifications: a few per-student ones and one institute-wide broadcast.
+Seed notifications: sample clearance notifications and one broadcast per institute.
 
 Goes through `notifications.service` so the rows look exactly like the ones
 the app writes - same types, same sources, same broadcast linkage.
@@ -7,9 +7,6 @@ the app writes - same types, same sources, same broadcast linkage.
 
 from __future__ import annotations
 
-from decimal import Decimal
-
-from api.fees.models import Fee
 from api.institutes.models import Institute
 from api.notifications.models import Notification, NotificationBroadcast
 from api.notifications.service import notify_user
@@ -20,8 +17,8 @@ from api.users.models import User
 
 class Command(SeedCommand):
     seed_name = "notifications"
-    help = "Create demo notifications and one broadcast per institute."
-    depends_on = ("seed_users", "seed_fees")
+    help = "Create demo clearance notifications and one broadcast per institute."
+    depends_on = ("seed_users", "seed_clearance")
 
     def reset(self, **options):
         Notification.objects.all().delete()
@@ -38,7 +35,7 @@ class Command(SeedCommand):
             sender = (
                 User.objects.filter(
                     institute=institute,
-                    groups__name__in=[Roles.CMS_ADMIN, Roles.SCHOOL_ADMIN],
+                    groups__name__in=[Roles.CLEARANCE_ADMIN, Roles.INSTITUTE_ADMIN, Roles.SCHOOL_ADMIN],
                 )
                 .order_by("id")
                 .first()
@@ -55,13 +52,13 @@ class Command(SeedCommand):
                 continue
 
             broadcast, made = NotificationBroadcast.objects.get_or_create(
-                title="Collection period is open",
+                title="E-Clearance Period is Now Open",
                 target_institute=institute,
                 defaults={
                     "sender": sender,
                     "message": (
-                        "Settle your outstanding balances at the collection "
-                        "office or through GCash before the due date."
+                        "The clearance signing window is now active. Please check "
+                        "your clearance requirements, settle obligations, and submit proofs."
                     ),
                     "total_recipients": len(recipients),
                 },
@@ -74,7 +71,7 @@ class Command(SeedCommand):
                         Notification(
                             user=recipient,
                             sender=sender,
-                            source=Notification.NotificationSource.COLLECTION,
+                            source=Notification.NotificationSource.CLEARANCE,
                             title=broadcast.title,
                             message=broadcast.message,
                             type=Notification.NotificationType.SYSTEM_ANNOUNCEMENT,
@@ -85,44 +82,31 @@ class Command(SeedCommand):
                 )
                 created_notifications += len(recipients)
 
-            created_notifications += self._pending_fee_notices(recipients, sender)
+            created_notifications += self._sample_clearance_notices(recipients, sender)
 
         self.created("broadcast", created_broadcasts)
         self.created("notification", created_notifications)
 
-    def _pending_fee_notices(self, recipients: list[User], sender: User) -> int:
+    def _sample_clearance_notices(self, recipients: list[User], sender: User) -> int:
         created = 0
         for user in self.sample(recipients, max(1, len(recipients) // 3)):
             student = getattr(user, "student", None)
             if student is None:
                 continue
 
-            # These have no natural key either, so "already told them once"
-            # is the idempotency check.
             if Notification.objects.filter(
-                user=user, type=Notification.NotificationType.PENDING_FEES
+                user=user, type=Notification.NotificationType.CLEARANCE_ISSUE
             ).exists():
-                continue
-
-            outstanding = Fee.objects.filter(
-                student=student,
-                status__in=[Fee.FeeStatus.PENDING, Fee.FeeStatus.OVERDUE],
-            )
-            total = sum((fee.balance for fee in outstanding), Decimal("0.00"))
-            if total <= 0:
                 continue
 
             notify_user(
                 user=user,
                 sender=sender,
-                title="You have unsettled fees",
-                message=(
-                    f"You have {outstanding.count()} unsettled fee(s) totalling "
-                    f"PHP {total:,.2f}."
-                ),
-                type=Notification.NotificationType.PENDING_FEES,
-                source=Notification.NotificationSource.COLLECTION,
-                data={"total_balance": str(total)},
+                title="Clearance Requirement Pending",
+                message="You have pending clearance items requiring settlement or proof submission.",
+                type=Notification.NotificationType.CLEARANCE_ISSUE,
+                source=Notification.NotificationSource.CLEARANCE,
+                data={"student_id": student.id},
             )
             created += 1
         return created

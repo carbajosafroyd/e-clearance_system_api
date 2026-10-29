@@ -40,7 +40,6 @@ from api.audits.utils import resolve_actor
 from django.http import HttpResponse
 import re
 from rest_framework.response import Response
-from .serializers import StudentFeeListSerializer
 
 from django.db.models import Sum
 
@@ -48,9 +47,6 @@ from rest_framework.serializers import ValidationError
 from rest_framework import status
 
 from api.programs.models import Program
-
-from api.fees.models import Fee
-from api.fees.serializers import FeeReadSlimSerializer
 
 
 def _acting_institute(request):
@@ -96,8 +92,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     required_permissions = crud(
         "students",
         "student",
-        fees_summary="students.view_student_fee_summary",
-        student_pending_fees="students.view_student_fee_summary",
         update_students="students.import_students",
         import_template="students.import_students",
         # Reading is the whole requirement for an export: the file contains
@@ -177,55 +171,6 @@ class StudentViewSet(viewsets.ModelViewSet):
             )
 
         serializer.save()
-
-    # @action(detail=True, methods=["get"], url_path="fees") GO TO FEES AND FILTER IT to use paginaation
-    # @extend_schema(responses={200: StudentFeeListSerializer(many=True)})
-    # def fees(self, request, pk=None):
-    #     student = self.get_object()
-    #     fees = student.fees.all()
-
-    #     serializer = StudentFeeListSerializer(fees, many=True)
-    #     return Response(serializer.data)
-
-    @action(detail=True, methods=["get"], url_path="fees-summary")
-    def fees_summary(self, request, pk=None):
-        student = self.get_object()
-
-        totals = student.fees.aggregate(
-            total_amount=Sum("total_amount"),
-            total_balance=Sum("balance"),
-        )
-        return Response(
-            {
-                "student_id": student.id,
-                "total_amount": totals["total_amount"] or 0,
-                "total_balance": totals["total_balance"] or 0,
-            }
-        )
-
-    @action(detail=True, methods=["get"], url_path="pending_fees")
-    def student_pending_fees(self, request, pk=None):
-        student = self.get_object()
-
-        student_fees = Fee.objects.filter(
-            student=student,
-            status__in=[
-                Fee.FeeStatus.PENDING,
-                Fee.FeeStatus.OVERDUE,
-            ],
-        ).order_by(
-            Case(
-                When(status=Fee.FeeStatus.OVERDUE, then=Value(0)),
-                When(status=Fee.FeeStatus.PENDING, then=Value(1)),
-                default=Value(2),
-                output_field=IntegerField(),
-            ),
-            "-updated_at",
-        )
-
-        serializer = FeeReadSlimSerializer(student_fees, many=True)
-
-        return Response(serializer.data)
 
     @extend_schema(
         request=StudentImportFileSerializer,

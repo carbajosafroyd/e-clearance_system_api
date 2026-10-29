@@ -80,11 +80,7 @@ class AccountSpec:
 PER_INSTITUTE_ACCOUNTS = (
     AccountSpec("admin", "Alex", "Aparece", Roles.INSTITUTE_ADMIN, essential=True),
     AccountSpec("staff", "Jessa", "Terig", Roles.INSTITUTE_STAFF),
-    AccountSpec("cmsadmin", "Aldren", "Luga", Roles.CMS_ADMIN),
-    AccountSpec("cmsstaff", "Shemeri", "Gregori", Roles.CMS_STAFF),
     AccountSpec("clearanceadmin", "Noel", "Cruz", Roles.CLEARANCE_ADMIN),
-    AccountSpec("lockeradmin", "Selwyn", "Villar", Roles.LOCKER_ADMIN),
-    AccountSpec("lockerstaff", "Ben", "Salazar", Roles.LOCKER_STAFF),
     AccountSpec("librarian", "Grace", "Lim", Roles.LIBRARIAN),
     AccountSpec("dean", "Micah", "Floro", Roles.DEAN),
     AccountSpec("cashier", "Paz", "Domingo", Roles.CASHIER),

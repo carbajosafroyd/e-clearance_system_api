@@ -1,6 +1,4 @@
 from rest_framework import serializers
-from api.collection_categories.serializers import CollectionCategoryMiniSerializer
-from api.fees.models import Fee
 from api.students.models import Student
 from api.programs import serializers as ProgramSerializers
 from api.users.models import User
@@ -88,24 +86,6 @@ class StudentReadMiniSerializer(serializers.ModelSerializer):
                 ],
             )
         )
-
-
-class StudentFeeListSerializer(serializers.ModelSerializer):
-    category = CollectionCategoryMiniSerializer()
-
-    class Meta:
-        model = Fee
-        fields = [
-            "id",
-            "category",
-            "total_amount",
-            "balance",
-            "status",
-            "due_date",
-            "academic_year",
-            "semester",
-            "remarks",
-        ]
 
 
 class StudentImportFileSerializer(serializers.Serializer):

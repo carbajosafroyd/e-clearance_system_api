@@ -86,21 +86,3 @@ class NotificationBroadcastSerializer(serializers.ModelSerializer):
             program_id=program_instance.id if program_instance else None,
             year_level=validated_data.get("target_year_level"),
         )
-
-
-
-class MarkFeesOverdueResponseSerializer(serializers.Serializer):
-    updated_count = serializers.IntegerField()
-    fee_ids = serializers.ListField(child=serializers.IntegerField())
-
-
-class OverdueBroadcastResponseSerializer(serializers.Serializer):
-    #: Fees flipped PENDING -> OVERDUE by this call, before anyone was told.
-    #: The recipient count answers a different question: it covers everybody
-    #: currently overdue, including those who already were.
-    updated_count = serializers.IntegerField(default=0)
-    broadcast_id = serializers.IntegerField()
-    title = serializers.CharField()
-    message = serializers.CharField()
-    total_recipients = serializers.IntegerField()
-    notified_user_ids = serializers.ListField(child=serializers.IntegerField())

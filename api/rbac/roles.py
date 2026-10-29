@@ -214,26 +214,11 @@ ACADEMIC_READ = (
 #: What a student may do with their own records.
 STUDENT_SELF_SERVICE = (
     "students.view_student",
-    "fees.view_fee",
-    # Their own fee's discount history. Row scoping is get_queryset's job;
-    # this only says a student may look at the list at all.
-    "fees.view_fee_discount_history",
-    "payments.view_payment",
-    "payment_submissions.view_paymentsubmission",
-    "payment_submissions.add_paymentsubmission",
-    "payment_submissions.withdraw_paymentsubmission",
-    "payment_submissions.view_paymentsubmissionitems",
-    "collection_categories.view_collectioncategory",
-    "collection_categories.view_institutegcashaccount",
     "notifications.view_notification",
     "notifications.change_notification",
     "system_settings.view_systemsetting",
     "rbac.view_student_dashboard",
     "rbac.upload_media",
-    # Their own account row. `UserViewSet.get_queryset` narrows a student to
-    # `id=user.id`, and `UserUpdateSerializer` exposes only name, username,
-    # password and avatar - no groups, no institute, no is_staff - so
-    # `change_user` here buys a profile page, not an escalation path.
     "users.view_user",
     "users.change_user",
 )
@@ -466,18 +451,11 @@ INSTITUTE_ADMINISTRATION = (
     # Its own logo and acronym. Row scoping (`InstituteViewSet.get_queryset`)
     # keeps it to the caller's school.
     "institutes.change_institute",
-    "collection_categories.view_institutegcashaccount",
-    "collection_categories.add_institutegcashaccount",
-    "collection_categories.change_institutegcashaccount",
-    "collection_categories.delete_institutegcashaccount",
     "system_settings.change_systemsetting",
     "system_settings.bulk_change_systemsetting",
     "system_settings.change_term_settings",
     "system_settings.change_feature_settings",
     "system_settings.change_student_maintenance",
-    # Closing and reopening the online-payment lane - the desk's own call,
-    # like holding students out while fee data is corrected.
-    "system_settings.change_payment_settings",
     # Changing which roles an account in their institute holds. Bounded by
     # `DELEGATION` below: an institute administrator hands out the staff
     # and system roles of their own institute, never a peer's role or a
@@ -590,9 +568,6 @@ PLATFORM_ADMINISTRATION = USER_ADMINISTRATION + (
     # one they happen to belong to. Bounded by `school`, so a school
     # administrator never reaches another school's institutes.
     "system_settings.manage_school_settings",
-    "contributions.add_pointpolicy",
-    "contributions.change_pointpolicy",
-    "contributions.delete_pointpolicy",
 )
 
 SOCIAL_FEED = (
@@ -610,17 +585,11 @@ SOCIAL_FEED = (
 
 ROLE_DEFINITIONS: dict[str, RoleSpec] = {
     Roles.STUDENT: RoleSpec(
-        description="A student. Sees only their own fees, payments and clearances.",
+        description="A student. Self-service clearance and profile.",
         permissions=(
             ACADEMIC_READ
             + STUDENT_SELF_SERVICE
-            + STUDENT_ATTENDANCE
             + STUDENT_CLEARANCE
-            + STUDENT_LOCKERS
-            + STUDENT_CONTRIBUTIONS
-            + STUDENT_COUPONS
-            + STUDENT_COMPLAINTS
-            + SOCIAL_FEED
         ),
     ),
     Roles.INSTITUTE_STAFF: RoleSpec(
@@ -640,117 +609,16 @@ ROLE_DEFINITIONS: dict[str, RoleSpec] = {
         inherits=(Roles.INSTITUTE_STAFF,),
         permissions=INSTITUTE_ADMINISTRATION + USER_ADMINISTRATION,
     ),
-    Roles.CMS_STAFF: RoleSpec(
-        description=(
-            "Collection desk staff: records payments, reviews GCash "
-            "submissions, keeps fees up to date. Institute-scoped."
-        ),
-        staff_flag=True,
-        permissions=(
-            ACADEMIC_READ
-            + COLLECTION_DESK
-            + ATTENDANCE_MANAGEMENT
-            + COMPLAINT_MANAGEMENT
-            + SOCIAL_FEED
-            + (
-                "notifications.view_notification",
-                "notifications.change_notification",
-                "system_settings.view_systemsetting",
-                "rbac.view_admin_dashboard",
-                "rbac.view_collection_summary",
-                "rbac.view_collection_report",
-                "rbac.view_detailed_report",
-                "rbac.export_report",
-                "rbac.upload_media",
-                "contributions.view_contribution",
-                "contributions.view_pointaccount",
-                "contributions.view_contribution_leaderboard",
-                "coupons.view_couponbatch",
-                "coupons.view_coupon",
-                "coupons.view_couponredemption",
-            )
-        ),
-    ),
-    Roles.CMS_ADMIN: RoleSpec(
-        description=(
-            "Owns the Collection Management System for an institute: fee "
-            "generation, waivers, cancellations, exemptions, reports and "
-            "contribution point payouts."
-        ),
-        staff_flag=True,
-        inherits=(Roles.CMS_STAFF,),
-        permissions=(
-            COLLECTION_MANAGEMENT
-            + CONTRIBUTION_MANAGEMENT
-            + COUPON_MANAGEMENT
-            + REPORTING
-            + AUDIT_READ
-            + USER_ADMINISTRATION
-            + (
-                "system_settings.change_systemsetting",
-                "system_settings.bulk_change_systemsetting",
-                # The term and the optional modules - the settings that
-                # describe how this institute runs. This is the institute
-                # administrator for the collection system; the desk staff
-                # below hold `view_systemsetting` and nothing more, so an
-                # officer reads these settings and never writes one.
-                #
-                # Deliberately *not* `change_maintenance`: closing the system
-                # to its own staff is the school administrator's call, not the
-                # institute's own.
-                "system_settings.change_term_settings",
-                "system_settings.change_feature_settings",
-                # The narrow shutter: hold students out while fee data is
-                # corrected, with staff still working. Not the wide one -
-                # closing the staff side stays with the school.
-                "system_settings.change_student_maintenance",
-                # And the narrower one: the GCash lane alone.
-                "system_settings.change_payment_settings",
-                "posts.add_post",
-                "posts.change_post",
-                "posts.delete_post",
-                "rbac.upload_media",
-            )
-        ),
-    ),
     Roles.CLEARANCE_ADMIN: RoleSpec(
         description="Owns clearance templates, requirements and issuance.",
         staff_flag=True,
         permissions=(
             ACADEMIC_READ
             + CLEARANCE_MANAGEMENT
-            + COMPLAINT_MANAGEMENT
             + (
                 "students.view_student",
                 "notifications.view_notification",
                 "rbac.view_admin_dashboard",
-            )
-        ),
-    ),
-    Roles.LOCKER_STAFF: RoleSpec(
-        description="Handles locker requests and hand-overs. Institute-scoped.",
-        staff_flag=True,
-        permissions=(
-            ACADEMIC_READ
-            + LOCKER_DESK
-            + COMPLAINT_MANAGEMENT
-            + ("students.view_student",)
-        ),
-    ),
-    Roles.LOCKER_ADMIN: RoleSpec(
-        description="Owns lockers, subscriptions and locker reports.",
-        staff_flag=True,
-        inherits=(Roles.LOCKER_STAFF,),
-        permissions=(
-            LOCKER_MANAGEMENT
-            + (
-                "rbac.view_admin_dashboard",
-                # Locker admins review the reports filed against *their*
-                # system; the row scoping is what keeps them out of the
-                # collection queue.
-                "contributions.view_contribution",
-                "contributions.review_contribution",
-                "contributions.view_pointaccount",
             )
         ),
     ),
@@ -760,13 +628,9 @@ ROLE_DEFINITIONS: dict[str, RoleSpec] = {
             "can do, plus users, institutes, programs and platform settings."
         ),
         staff_flag=True,
-        # Everything an institute administrator can do, in any institute of
-        # the school, plus the three system-admin roles.
         inherits=(
             Roles.INSTITUTE_ADMIN,
-            Roles.CMS_ADMIN,
             Roles.CLEARANCE_ADMIN,
-            Roles.LOCKER_ADMIN,
         ),
         permissions=PLATFORM_ADMINISTRATION,
     ),
@@ -806,23 +670,12 @@ for _signatory in CLEARANCE_SIGNATORY_ROLES:
 #: the authority.
 DELEGATION: dict[str, tuple[str, ...]] = {
     Roles.SCHOOL_ADMIN: (Roles.INSTITUTE_ADMIN,),
-    # Everyone who works at the institute, whichever system they work in.
-    # Placement is the institute administrator's own institute - the
-    # invitation serializer and the assign endpoint both check it.
     Roles.INSTITUTE_ADMIN: (
         Roles.INSTITUTE_STAFF,
-        Roles.CMS_ADMIN,
-        Roles.CMS_STAFF,
         Roles.CLEARANCE_ADMIN,
-        Roles.LOCKER_ADMIN,
-        Roles.LOCKER_STAFF,
         Roles.STUDENT,
+        *CLEARANCE_SIGNATORY_ROLES,
     ),
-    # The collection system's own administrator, from before the generic
-    # institute roles existed: still appoints their desk staff and their
-    # students, so a deployment that has not moved its accounts over keeps
-    # working.
-    Roles.CMS_ADMIN: (Roles.CMS_STAFF, Roles.STUDENT),
 }
 
 #: A superuser appoints school administrators and nothing below them - the

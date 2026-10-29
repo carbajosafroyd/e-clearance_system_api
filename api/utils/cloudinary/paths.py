@@ -108,9 +108,6 @@ class Kind(str, Enum):
     PROFILES = "profiles"
     LOGOS = "logos"
     BACKGROUNDS = "backgrounds"
-    GCASH_ACCOUNTS = "gcash_accounts"
-    PAYMENTS = "payments"
-    POSTS = "posts"
     CLEARANCE_PROOFS = "clearance_proofs"
 
 ROOT = "codex_systems/"
@@ -158,13 +155,6 @@ def student_root(student) -> str:
     return f"{institute_root(student.program.institute)}/{STUDENTS_SEGMENT}/{_pk(student)}"
 
 
-def post_root(post) -> str:
-    """`.../institutes/<id>/posts/<post_id>`; a post with no institute keeps the old flat shape."""
-    if post.institute_id is None:
-        return f"{Kind.POSTS.value}/{_pk(post)}"
-    return f"{institute_root(post.institute)}/{Kind.POSTS.value}/{_pk(post)}"
-
-
 # ---------------------------------------------------------------------------
 # Owners
 # ---------------------------------------------------------------------------
@@ -188,7 +178,6 @@ def _models():
         apps.get_model("schools", "School"),
         apps.get_model("institutes", "Institute"),
         apps.get_model("students", "Student"),
-        apps.get_model("posts", "Post"),
         get_user_model(),
     )
 
@@ -228,15 +217,13 @@ def user_root(user) -> str:
 
 def owner_root(owner) -> str:
     """The folder everything `owner` owns sits under - also the prefix to delete it all by."""
-    School, Institute, Student, Post, User = _models()
+    School, Institute, Student, User = _models()
     if isinstance(owner, School):
         return school_root(owner)
     if isinstance(owner, Institute):
         return institute_root(owner)
     if isinstance(owner, Student):
         return student_root(owner)
-    if isinstance(owner, Post):
-        return post_root(owner)
     if isinstance(owner, User):
         return user_root(owner)
     raise TypeError(f"{type(owner).__name__} does not own Cloudinary uploads.")
@@ -246,15 +233,9 @@ def folder_for(owner, kind) -> str:
     """
     The folder an upload of `kind` that belongs to `owner` goes in.
 
-    `owner` is a School, Institute, Student, Post or User. A Post *is* its
-    folder (`.../posts/<id>`), so `kind` must be `Kind.POSTS` there.
+    `owner` is a School, Institute, Student or User.
     """
     kind = Kind(kind)
-    School, Institute, Student, Post, User = _models()
-    if isinstance(owner, Post):
-        if kind is not Kind.POSTS:
-            raise ValueError("A post's media can only be of kind POSTS.")
-        return post_root(owner)
     return f"{owner_root(owner)}/{kind.value}"
 
 
@@ -297,16 +278,13 @@ def tags_for(owner) -> list:
     user or post - and, for a student, by program / year / set at the time
     of upload. Safe characters only; an empty value drops the tag.
     """
-    School, Institute, Student, Post, User = _models()
+    School, Institute, Student, User = _models()
     if isinstance(owner, School):
         return _school_tags(owner.pk)
     if isinstance(owner, Institute):
         return _institute_tags(owner)
     if isinstance(owner, Student):
         return _student_tags(owner)
-    if isinstance(owner, Post):
-        scope = _institute_tags(owner.institute) if owner.institute_id is not None else [] # type: ignore
-        return scope + _present(_tag("post", owner.pk))
     if isinstance(owner, User):
         root, scope = _user_scope(owner)
         own = _present(_tag("user", owner.pk))
@@ -333,7 +311,6 @@ class PathInfo:
     school: Optional[int] = None
     institute: Optional[int] = None
     student: Optional[int] = None
-    post: Optional[int] = None
     kind: Optional[Kind] = None
     file: Optional[str] = None
 
@@ -346,8 +323,6 @@ class PathInfo:
             return "superadmin"
         if self.root == UNFILED_ROOT:
             return "unattached account"
-        if self.post is not None:
-            return f"post {self.post} (school {self.school}, institute {self.institute})"
         if self.student is not None:
             return f"student {self.student} (school {self.school}, institute {self.institute})"
         if self.institute is not None:
@@ -395,13 +370,6 @@ def describe_path(public_id: str) -> PathInfo:
             if len(rest) < 4 or not rest[1].isdigit():
                 return legacy
             student, rest = int(rest[1]), rest[2:]
-    if institute is not None and student is None and rest[0] == Kind.POSTS.value:
-        if len(rest) == 3 and rest[1].isdigit():
-            return PathInfo(
-                public_id, root=SCHOOLS_ROOT, school=school, institute=institute,
-                post=int(rest[1]), kind=Kind.POSTS, file=rest[2],
-            )
-        return legacy
     if len(rest) == 2 and rest[0] in _KINDS:
         return PathInfo(
             public_id, root=SCHOOLS_ROOT, school=school, institute=institute,
