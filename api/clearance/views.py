@@ -28,7 +28,7 @@ from api.clearance.serializers import (
     StudentClearanceWriteSerializer,
     StudentClearanceItemReadSerializer,
     StudentClearanceItemWriteSerializer,
-    GroupSlimSerializer,
+    ClearanceRoleSlimSerializer,
 )
 from api.clearance.services.issuance_service import issue_clearance_to_target_students
 from api.clearance.services.status_service import (
@@ -1291,7 +1291,7 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
 @extend_schema(tags=["Clearance Role"])
 class ClearanceRoleViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all().order_by("name")
-    serializer_class = GroupSlimSerializer
+    serializer_class = ClearanceRoleSlimSerializer
     pagination_class = CustomPagination
     permission_classes = [IsAuthenticated]
     search_fields = ["name"]

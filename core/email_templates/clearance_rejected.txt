@@ -1,0 +1,14 @@
+{{ brand_name }}
+CLEARANCE DEFICIENCY NOTICE
+
+Hello {{ student_name }},
+
+A deficiency was flagged for '{{ requirement_name }}' on your {{ clearance_type_name }} clearance.
+
+Signatory Remarks: {{ remarks|default:"Please comply with the designated deficiency." }}
+{% if amount_due %}Amount Due: PHP {{ amount_due }}{% endif %}
+
+Please sign in to the e-clearance portal to view details and submit your proof of compliance:
+{{ action_url }}
+
+(c) {{ year }} {{ brand_name }}

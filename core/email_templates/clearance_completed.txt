@@ -1,0 +1,15 @@
+{{ brand_name }}
+OFFICIAL CLEARANCE COMPLETION NOTICE
+
+Dear {{ student_name }},
+
+Congratulations! All requirements for your {{ clearance_type_name }} clearance ({{ academic_year }}, {{ semester }}) have been cleared.
+
+Completed on: {{ date_completed_formatted }}
+
+Your official Certificate of Clearance (PDF) is attached to this email.
+
+You may also verify your clearance online at:
+{{ verify_url }}
+
+(c) {{ year }} {{ brand_name }}

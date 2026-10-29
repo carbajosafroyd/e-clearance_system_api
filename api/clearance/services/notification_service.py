@@ -63,6 +63,12 @@ def notify_deficiency_issue(item: StudentClearanceItem, actor=None) -> None:
                 "remarks": item.remarks,
             },
         )
+
+        try:
+            from api.clearance.services.email_service import send_clearance_deficiency_email
+            send_clearance_deficiency_email(item)
+        except Exception as email_err:
+            logger.warning("Failed to dispatch deficiency email for item %s: %s", item.id, email_err)
     except Exception as e:
         logger.warning("Failed to send deficiency notification for item %s: %s", item.id, e)
 
@@ -156,6 +162,16 @@ def notify_clearance_completed(student_clearance: StudentClearance, actor=None) 
                 ),
             },
         )
+
+        try:
+            from api.clearance.services.email_service import send_clearance_completed_email
+            send_clearance_completed_email(student_clearance)
+        except Exception as email_err:
+            logger.warning(
+                "Failed to dispatch completion email for clearance %s: %s",
+                student_clearance.id,
+                email_err,
+            )
     except Exception as e:
         logger.warning(
             "Failed to send clearance completed notification for clearance %s: %s",

@@ -1,0 +1,55 @@
+{% extends "email_templates/base.html" %}
+
+{% block title %}Clearance Deficiency Notice - {{ requirement_name }}{% endblock %}
+{% block preheader %}Action required: A deficiency was flagged for '{{ requirement_name }}' on your {{ clearance_type_name }} clearance.{% endblock %}
+{% block eyebrow %}Clearance Action Required{% endblock %}
+{% block heading %}Deficiency Flagged on Clearance{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    Hello {{ student_name }},
+</p>
+<p style="margin:12px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    A signatory has noted a deficiency on your <strong>{{ clearance_type_name }}</strong> clearance requirement: <strong>{{ requirement_name }}</strong>.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:20px 0 0; background-color:#fff1f2; border:1px solid #fecdd3; border-radius:10px;">
+    <tr>
+        <td style="padding:20px;">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#9f1239;">
+                Signatory Remarks / Reason
+            </div>
+            <div style="margin:8px 0 0; font-size:15px; font-weight:600; color:#881337;">
+                {{ remarks|default:"Please comply with the designated deficiency." }}
+            </div>
+            {% if amount_due %}
+            <div style="margin:12px 0 0; font-size:14px; color:#9f1239;">
+                <strong>Amount Due:</strong> &#8369;{{ amount_due }}
+            </div>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+<p style="margin:20px 0 0; font-size:14px; line-height:1.65; color:#475569;">
+    Please settle your obligation or upload your compliance proof directly on the e-clearance portal.
+</p>
+
+{% if action_url %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;">
+    <tr>
+        <td align="center">
+            <a href="{{ action_url }}"
+               style="display:inline-block; padding:12px 24px; background-color:#04932a; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; border-radius:6px;">
+                View Requirement & Submit Proof
+            </a>
+        </td>
+    </tr>
+</table>
+{% endif %}
+{% endblock %}
+
+{% block footer_note %}
+You received this notification because you are enrolled in active student clearance at {{ brand_name }}.
+{% endblock %}

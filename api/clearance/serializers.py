@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Group
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import (
     ClearanceType,
@@ -31,7 +32,7 @@ def get_program_display(program):
     return str(program)
 
 
-class GroupSlimSerializer(serializers.ModelSerializer):
+class ClearanceRoleSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ["id", "name"]
@@ -100,12 +101,15 @@ class ClearanceRequirementReadSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(ClearanceRoleSlimSerializer(many=True))
     def get_authorizing_roles(self, obj):
-        return GroupSlimSerializer(get_requirement_authorizing_roles(obj), many=True).data
+        return ClearanceRoleSlimSerializer(get_requirement_authorizing_roles(obj), many=True).data
 
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_authorizing_role_ids(self, obj):
         return [role.id for role in get_requirement_authorizing_roles(obj)]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_authorizing_role_names(self, obj):
         return [role.name for role in get_requirement_authorizing_roles(obj)]
 
@@ -204,6 +208,7 @@ class ClearanceTypeSlimSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.IntegerField())
     def get_requirement_count(self, obj):
         annotated_count = getattr(obj, "requirement_count", None)
         if annotated_count is not None:
@@ -337,15 +342,19 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
             requirement__order_sequence__lt=obj.requirement.order_sequence,
         ).exclude(status=StudentClearanceItem.ItemStatus.CLEARED).exists()
 
+    @extend_schema_field(ClearanceRoleSlimSerializer(many=True))
     def get_authorizing_roles(self, obj):
-        return GroupSlimSerializer(get_requirement_authorizing_roles(obj.requirement), many=True).data
+        return ClearanceRoleSlimSerializer(get_requirement_authorizing_roles(obj.requirement), many=True).data
 
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_authorizing_role_ids(self, obj):
         return [role.id for role in get_requirement_authorizing_roles(obj.requirement)]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_authorizing_role_names(self, obj):
         return [role.name for role in get_requirement_authorizing_roles(obj.requirement)]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_proof_attachment_url(self, obj):
         if not obj.proof_attachment:
             return None
@@ -355,6 +364,7 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_cleared_by_name(self, obj):
         user = obj.cleared_by_user
         if not user:
@@ -449,6 +459,7 @@ class StudentClearanceSlimSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.CharField())
     def get_student_name(self, obj):
         return build_full_name(
             obj.student.s_fname,
@@ -457,6 +468,7 @@ class StudentClearanceSlimSerializer(serializers.ModelSerializer):
             obj.student.s_suffix,
         )
 
+    @extend_schema_field(serializers.CharField())
     def get_program(self, obj):
         return get_program_display(obj.student.program)
 
@@ -502,6 +514,7 @@ class StudentClearanceReadSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.CharField())
     def get_student_name(self, obj):
         return build_full_name(
             obj.student.s_fname,
@@ -510,6 +523,7 @@ class StudentClearanceReadSerializer(serializers.ModelSerializer):
             obj.student.s_suffix,
         )
 
+    @extend_schema_field(serializers.CharField())
     def get_program(self, obj):
         return get_program_display(obj.student.program)
 

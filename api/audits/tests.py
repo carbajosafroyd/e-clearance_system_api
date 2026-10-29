@@ -1,4 +1,4 @@
-﻿from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
@@ -17,7 +17,7 @@ class AuditLogPermissionTests(APITestCase):
     def setUp(self):
         cache.clear()
         self.staff = User.objects.create_user(username="staff1", password="pass1234")
-        assign_role(self.staff, Roles.CMS_ADMIN)
+        assign_role(self.staff, Roles.CLEARANCE_ADMIN)
 
         self.student = User.objects.create_user(username="student1", password="pass1234")
         assign_role(self.student, Roles.STUDENT)
@@ -51,7 +51,7 @@ class AuditLogFilterTests(APITestCase):
             username="staff2", password="pass1234",
             first_name="Juan", last_name="Cruz",
         )
-        assign_role(self.staff, Roles.CMS_ADMIN)
+        assign_role(self.staff, Roles.CLEARANCE_ADMIN)
         self.other = User.objects.create_user(
             username="staff2b", password="pass1234",
             first_name="Maria", last_name="Santos",
@@ -154,7 +154,7 @@ class AuditLogCacheTests(APITestCase):
     def setUp(self):
         cache.clear()
         self.staff = User.objects.create_user(username="staff3", password="pass1234")
-        assign_role(self.staff, Roles.CMS_ADMIN)
+        assign_role(self.staff, Roles.CLEARANCE_ADMIN)
         self.client.force_authenticate(self.staff)
         self.list_url = reverse("audit-logs-list")
 
@@ -189,7 +189,7 @@ class AuditLogRetrieveTests(APITestCase):
     def setUp(self):
         cache.clear()
         self.staff = User.objects.create_user(username="staff4", password="pass1234")
-        assign_role(self.staff, Roles.CMS_ADMIN)
+        assign_role(self.staff, Roles.CLEARANCE_ADMIN)
         self.client.force_authenticate(self.staff)
 
         self.audit_log = AuditLogService.log_action(
@@ -224,7 +224,7 @@ class AuditLogReportTests(APITestCase):
             username="reporter", password="pass1234",
             first_name="Ana", last_name="Reyes",
         )
-        assign_role(self.staff, Roles.CMS_ADMIN)
+        assign_role(self.staff, Roles.CLEARANCE_ADMIN)
 
         self.student = User.objects.create_user(username="student9", password="pass1234")
         assign_role(self.student, Roles.STUDENT)

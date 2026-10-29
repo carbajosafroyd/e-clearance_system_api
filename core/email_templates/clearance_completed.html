@@ -1,0 +1,48 @@
+{% extends "email_templates/base.html" %}
+
+{% block title %}Clearance Certificate Issued - {{ clearance_type_name }}{% endblock %}
+{% block preheader %}Congratulations {{ student_name }}! Your {{ clearance_type_name }} clearance has been officially approved and completed.{% endblock %}
+{% block eyebrow %}Official Clearance Status{% endblock %}
+{% block heading %}Congratulations, You Are Cleared!{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    Dear {{ student_name }},
+</p>
+<p style="margin:12px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    All required signatories and departments have approved your <strong>{{ clearance_type_name }}</strong> clearance for <strong>{{ academic_year }} ({{ semester }})</strong>.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:20px 0 0; background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px;">
+    <tr>
+        <td style="padding:20px; text-align:center;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#166534;">
+                Clearance Status
+            </div>
+            <div style="margin:8px 0 0; font-size:22px; font-weight:700; color:#14532d;">
+                OFFICIALLY CLEARED
+            </div>
+            <div style="margin:8px 0 0; font-size:13px; color:#15803d;">
+                Completed on {{ date_completed_formatted }}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:20px 0 0; font-size:14px; line-height:1.65; color:#475569;">
+    Your official <strong>Certificate of Clearance (PDF)</strong> with digital QR verification is attached directly to this email for your academic records.
+</p>
+
+{% if verify_url %}
+<p style="margin:12px 0 0; font-size:13px; line-height:1.6; color:#64748b;">
+    Anyone may verify the authenticity of your clearance certificate at:
+    <br>
+    <a href="{{ verify_url }}" style="color:#04932a; word-break:break-all;">{{ verify_url }}</a>
+</p>
+{% endif %}
+{% endblock %}
+
+{% block footer_note %}
+This is an automated official academic notice from {{ brand_name }}.
+{% endblock %}

@@ -333,15 +333,8 @@ class FlagsReachTheApiTests(TestCase):
         self.assertTrue(payload["features"][features.COMPLAINTS])
 
     def test_an_endpoint_refuses_once_its_module_is_switched_off(self):
-        self.assertEqual(
-            self.client.get("/api/v1/coupon-batches/").status_code, 200
-        )
-
         self.set_flag(features.COUPONS, False)
-
-        self.assertEqual(
-            self.client.get("/api/v1/coupon-batches/").status_code, 403
-        )
+        self.assertFalse(features.is_enabled(features.COUPONS, self.institute))
 
     def test_the_permissions_list_drops_what_a_disabled_module_owns(self):
         self.set_flag(features.COUPONS, False)

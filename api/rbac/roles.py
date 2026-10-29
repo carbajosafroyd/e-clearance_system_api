@@ -615,6 +615,7 @@ ROLE_DEFINITIONS: dict[str, RoleSpec] = {
         permissions=(
             ACADEMIC_READ
             + CLEARANCE_MANAGEMENT
+            + AUDIT_READ
             + (
                 "students.view_student",
                 "notifications.view_notification",

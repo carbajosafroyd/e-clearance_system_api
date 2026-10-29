@@ -1,7 +1,8 @@
 from unittest.mock import patch
 from django.contrib.auth.models import Group
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -919,3 +920,120 @@ class CertificateAndVerificationTests(TestCase):
         self.assertTrue(resp_verify.data["valid"])
         self.assertEqual(resp_verify.data["status"], "completed")
         self.assertEqual(len(resp_verify.data["signatories"]), 2)
+
+
+@override_settings(EMAIL_SEND_ASYNC=False)
+class ClearanceEmailAlertTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.school = School.objects.create(school_name="DNSC Main", short_name="DNSC")
+        self.institute = Institute.objects.create(institute_name="Computing", school=self.school)
+        self.program = Program.objects.create(
+            name="BS Information Technology",
+            acronym="BSIT",
+            institute=self.institute,
+        )
+
+        self.student_role = Group.objects.get_or_create(name=Roles.STUDENT)[0]
+        self.librarian_role = Group.objects.get_or_create(name=Roles.LIBRARIAN)[0]
+
+        self.student_user = User.objects.create_user(
+            username="test_student",
+            email="froydcarbajosa14@gmail.com",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.student_user.groups.add(self.student_role)
+        self.student = Student.objects.create(
+            s_studentID="2026-0001",
+            s_fname="Froyd",
+            s_lname="Carbajosa",
+            s_lvl=4,
+            program=self.program,
+            user=self.student_user,
+        )
+
+        self.librarian_user = User.objects.create_user(
+            username="test_librarian",
+            email="librarian@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.librarian_user.groups.add(self.librarian_role)
+
+        self.clearance_type = ClearanceType.objects.create(
+            institute=self.institute,
+            name="Graduation Clearance",
+            academic_year="2025-2026",
+            semester="2nd",
+            is_active=True,
+            is_issued=True,
+            target_year_levels=[4],
+        )
+
+        self.req = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Library Clearance",
+            order_sequence=1,
+            authorizing_role=self.librarian_role,
+        )
+
+        self.student_clearance = StudentClearance.objects.create(
+            student=self.student,
+            clearance_type=self.clearance_type,
+            status=StudentClearance.ClearanceStatus.PENDING,
+            is_enrolled=True,
+        )
+
+        self.item = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance,
+            requirement=self.req,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+
+    def test_deficiency_alert_email_dispatched_on_has_issue(self):
+        mail.outbox.clear()
+
+        self.client.force_authenticate(user=self.librarian_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item.id}/",
+            {
+                "status": StudentClearanceItem.ItemStatus.HAS_ISSUE,
+                "remarks": "Overdue book: Clean Code 2nd Ed",
+                "amount_due": "250.00",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+        self.assertIn("froydcarbajosa14@gmail.com", sent_email.to)
+        self.assertIn("Deficiency Notice", sent_email.subject)
+        self.assertIn("Clean Code", sent_email.body)
+
+    def test_completion_email_with_pdf_attached_dispatched_on_completed(self):
+        mail.outbox.clear()
+
+        self.client.force_authenticate(user=self.librarian_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.COMPLETED)
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+        self.assertIn("froydcarbajosa14@gmail.com", sent_email.to)
+        self.assertIn("Official Clearance Certificate", sent_email.subject)
+        self.assertEqual(len(sent_email.attachments), 1)
+
+        filename, content, mimetype = sent_email.attachments[0]
+        self.assertTrue(filename.endswith(".pdf"))
+        self.assertEqual(mimetype, "application/pdf")
+        self.assertTrue(content.startswith(b"%PDF"))
+

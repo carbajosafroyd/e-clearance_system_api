@@ -10,7 +10,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from api.fees.tests.factories import make_institute
+from api.schools.models import School
+from api.institutes.models import Institute
+
+
+def make_institute(name="Institute of Computing", acronym="IC"):
+    school, _ = School.objects.get_or_create(school_name="Davao del Norte State College", short_name="DNSC")
+    return Institute.objects.create(institute_name=name, acronym=acronym, school=school)
 
 
 def _png(name="bg.png"):

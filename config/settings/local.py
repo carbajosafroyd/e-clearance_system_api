@@ -14,7 +14,7 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 # Sensible defaults for local frontend dev servers; override via .env if needed
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://127.0.0.1:5500,http://localhost:5173,http://localhost:49181",
+    "http://127.0.0.1:5500,http://localhost:5173,http://localhost:3000,http://localhost:49181",
 )
 
 # Optional: run against local SQLite instead of MySQL by setting USE_SQLITE=True
