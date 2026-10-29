@@ -23,6 +23,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 
 from api.views import HealthDetailView, ReadinessView, LivenessView
 urlpatterns = [
+    path("healthz", LivenessView.as_view(), name="healthz"),
+    path("healthz/", LivenessView.as_view(), name="healthz-slash"),
     path("health/", HealthDetailView.as_view(), name="detail"),
     path("health/live/", LivenessView.as_view(), name="live"),
     path("health/ready/", ReadinessView.as_view(), name="ready"),

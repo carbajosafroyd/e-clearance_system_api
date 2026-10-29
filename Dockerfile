@@ -30,11 +30,11 @@ RUN useradd -m -u 1000 eclearance && \
 
 USER eclearance
 
-EXPOSE 8000
+EXPOSE 8000 10000
 
-# Health check using the live health endpoint
+# Health check using the live health endpoint (works for both local and Render)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health/live/ || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health/live/ || exit 1
 
-# Launch production WSGI application with Gunicorn
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120"]
+# Launch production WSGI application with Gunicorn on dynamic $PORT
+CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --threads 2 --timeout 120"]

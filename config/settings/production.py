@@ -13,10 +13,39 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "dnsc-systems-api.onrender.com")
+_raw_allowed = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1,.onrender.com",
+)
+_clean_hosts = []
+for _h in _raw_allowed:
+    _h = _h.strip()
+    if _h.startswith("https://"):
+        _h = _h[len("https://") :]
+    elif _h.startswith("http://"):
+        _h = _h[len("http://") :]
+    _h = _h.split("/")[0].split(":")[0]
+    if _h:
+        _clean_hosts.append(_h)
 
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS", "https://dnsc-systems-api.onrender.com"
+ALLOWED_HOSTS = sorted(
+    list(set(_clean_hosts + ["localhost", "127.0.0.1", ".onrender.com", "testserver"]))
+)
+
+_raw_csrf = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://*.onrender.com",
+)
+_clean_csrf = []
+for _origin in _raw_csrf:
+    _origin = _origin.strip().rstrip("/")
+    if _origin and not (_origin.startswith("http://") or _origin.startswith("https://")):
+        _origin = f"https://{_origin}"
+    if _origin:
+        _clean_csrf.append(_origin)
+
+CSRF_TRUSTED_ORIGINS = sorted(
+    list(set(_clean_csrf + ["https://*.onrender.com"]))
 )
 
 # Hardening — safe defaults for a deployed service sitting behind HTTPS
