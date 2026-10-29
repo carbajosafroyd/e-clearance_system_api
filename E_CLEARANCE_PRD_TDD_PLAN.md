@@ -357,23 +357,23 @@ Step 4: Hide Sibling Models from Swagger / OpenAPI
 # 3. Step-by-Step Execution Plan & Milestone Roadmap
 
 ```
-Milestone 1: Packaging & Code Health (Day 1)
-  ├── 1.1 Create api/clearance/__init__.py
-  ├── 1.2 Deprecate external n8n gateway and remove unused compat bridge routes
-  └── 1.3 Connect clearance viewsets to centralized rbac/scoping.py (scope_queryset)
+Milestone 1: Packaging & Code Health [COMPLETED]
+  ├── [x] 1.1 Create api/clearance/__init__.py
+  ├── [x] 1.2 Deprecate external n8n gateway and remove unused compat bridge routes
+  └── [x] 1.3 Connect clearance viewsets to centralized rbac/scoping.py (scope_queryset)
 
-Milestone 2: Sequential Workflow & State Machine (Days 2–3)
-  ├── 2.1 Add verification_token and clearance_category to models
-  ├── 2.2 Implement validate_sequential_clearance() in StudentClearanceItemViewSet
-  ├── 2.3 Implement evaluate_student_clearance_status() service
-  ├── 2.4 Secure perform_update() on StudentClearanceItemViewSet (cleared_by_user immutability)
-  └── 2.5 Filter signatory_dashboard to actionable students only
+Milestone 2: Sequential Workflow & State Machine [COMPLETED]
+  ├── [x] 2.1 Add verification_token and clearance_category to models
+  ├── [x] 2.2 Implement validate_sequential_clearance() in StudentClearanceItemViewSet
+  ├── [x] 2.3 Implement evaluate_student_clearance_status() service
+  ├── [x] 2.4 Secure perform_update() on StudentClearanceItemViewSet (cleared_by_user immutability)
+  └── [x] 2.5 Filter signatory_dashboard to actionable students only
 
-Milestone 3: Deficiency Resolution & Proof Uploads (Days 4–5)
-  ├── 3.1 Add proof_attachment and proof_notes fields to StudentClearanceItem
-  ├── 3.2 Implement POST upload-proof action using Cloudinary utility
-  ├── 3.3 Add notification hooks on has_issue and proof upload
-  └── 3.4 Integrate AuditLogService on every status transition
+Milestone 3: Deficiency Resolution & Proof Uploads [COMPLETED]
+  ├── [x] 3.1 Add proof_attachment and proof_notes fields to StudentClearanceItem
+  ├── [x] 3.2 Implement POST upload-proof action using Cloudinary utility
+  ├── [x] 3.3 Add notification hooks on has_issue and proof upload
+  └── [x] 3.4 Integrate AuditLogService on every status transition
 
 Milestone 4: PDF Certification, Verification & Testing (Days 6–7)
   ├── 4.1 Create certificate HTML template in core/templates/clearance/

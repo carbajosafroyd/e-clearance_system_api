@@ -47,6 +47,10 @@ class Notification(TimeStampedModel):
         COMPLAINT_ACKNOWLEDGED = "complaint.acknowledged", "Complaint Acknowledged"
         COMPLAINT_RESOLVED = "complaint.resolved", "Complaint Resolved"
         COMPLAINT_REJECTED = "complaint.rejected", "Complaint Closed"
+        CLEARANCE_ISSUE = "clearance.issue", "Clearance Deficiency Issue"
+        CLEARANCE_PROOF_SUBMITTED = "clearance.proof_submitted", "Clearance Proof Submitted"
+        CLEARANCE_CLEARED = "clearance.cleared", "Clearance Item Cleared"
+        CLEARANCE_COMPLETED = "clearance.completed", "Clearance Completed"
 
     class NotificationSource(models.TextChoices):
         COLLECTION = "collection", "Collection Management System"
@@ -55,6 +59,7 @@ class Notification(TimeStampedModel):
         SUBMISSIONS = "submissions", "Submissions System"
         AUTH = "auth", "Authentication System"
         COMPLAINTS = "complaints", "Complaints"
+        CLEARANCE = "clearance", "Clearance System"
         SYSTEM = "system", "System"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)

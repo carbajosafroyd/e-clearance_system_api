@@ -1,4 +1,6 @@
+from unittest.mock import patch
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -10,11 +12,13 @@ from api.clearance.models import (
     StudentClearanceItem,
 )
 from api.institutes.models import Institute
+from api.notifications.models import Notification
 from api.programs.models import Program
 from api.rbac.roles import Roles
 from api.schools.models import School
 from api.students.models import Student
 from api.users.models import User
+from api.utils.cloudinary.cloudinary_utils import UploadedImage
 
 
 class ClearanceAPITests(TestCase):
@@ -265,3 +269,412 @@ class ClearanceAPITests(TestCase):
         # Legacy n8n bridge was retired
         response_bridge = self.client.get("/api/v1/bridge/")
         self.assertEqual(response_bridge.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class SequentialClearanceTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        self.school = School.objects.create(school_name="DNSC", short_name="DNSC", location="Panabo City")
+        self.institute = Institute.objects.create(institute_name="Institute of Computing", acronym="IC", school=self.school)
+        self.program = Program.objects.create(name="BS in Information Technology", acronym="BSIT", institute=self.institute)
+
+        self.librarian_group, _ = Group.objects.get_or_create(name=Roles.LIBRARIAN)
+        self.dean_group, _ = Group.objects.get_or_create(name=Roles.DEAN)
+        self.student_group, _ = Group.objects.get_or_create(name=Roles.STUDENT)
+
+        self.librarian_user = User.objects.create_user(
+            username="librarian_user",
+            email="librarian@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+            is_staff=True,
+        )
+        self.librarian_user.groups.add(self.librarian_group)
+
+        self.dean_user = User.objects.create_user(
+            username="dean_user",
+            email="dean@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+            is_staff=True,
+        )
+        self.dean_user.groups.add(self.dean_group)
+
+        self.student_user = User.objects.create_user(
+            username="student_user",
+            email="student@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.student_user.groups.add(self.student_group)
+
+        self.student = Student.objects.create(
+            s_studentID="2024000099",
+            s_fname="Maria",
+            s_lname="Clara",
+            s_lvl=3,
+            program=self.program,
+            user=self.student_user,
+        )
+
+        self.clearance_type = ClearanceType.objects.create(
+            institute=self.institute,
+            name="2nd Sem Clearance",
+            academic_year="2026-2027",
+            semester="2nd",
+            is_active=True,
+            is_issued=True,
+            target_year_levels=[3],
+        )
+
+        # Step 1: Library
+        self.req_library = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Library Clearance",
+            authorizing_role=self.librarian_group,
+            order_sequence=1,
+        )
+
+        # Step 2: Dean
+        self.req_dean = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Dean Clearance",
+            authorizing_role=self.dean_group,
+            order_sequence=2,
+        )
+
+        self.student_clearance = StudentClearance.objects.create(
+            student=self.student,
+            clearance_type=self.clearance_type,
+            status=StudentClearance.ClearanceStatus.PENDING,
+        )
+
+        self.item_library = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance,
+            requirement=self.req_library,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+
+        self.item_dean = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance,
+            requirement=self.req_dean,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+
+    def test_sequential_signing_blocks_out_of_order_approval(self):
+        # Dean tries to clear Step 2 before Step 1 is cleared
+        self.client.force_authenticate(user=self.dean_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_dean.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Sequential clearance locked", str(response.data))
+        self.assertIn("Library Clearance", str(response.data))
+
+        # Check item remains pending in DB
+        self.item_dean.refresh_from_db()
+        self.assertEqual(self.item_dean.status, StudentClearanceItem.ItemStatus.PENDING)
+
+    def test_sequential_signing_and_state_transitions(self):
+        # 1. Clear Step 1 (Library)
+        self.client.force_authenticate(user=self.librarian_user)
+        response1 = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_library.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        self.item_library.refresh_from_db()
+        self.assertEqual(self.item_library.status, StudentClearanceItem.ItemStatus.CLEARED)
+        self.assertEqual(self.item_library.cleared_by_user_id, self.librarian_user.id)
+        self.assertIsNotNone(self.item_library.cleared_at)
+
+        # Clearance should now be in_progress
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.IN_PROGRESS)
+        self.assertIsNone(self.student_clearance.date_completed)
+
+        # 2. Clear Step 2 (Dean) - should now succeed
+        self.client.force_authenticate(user=self.dean_user)
+        response2 = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_dean.id}/",
+            {"status": StudentClearanceItem.ItemStatus.CLEARED},
+        )
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        self.item_dean.refresh_from_db()
+        self.assertEqual(self.item_dean.status, StudentClearanceItem.ItemStatus.CLEARED)
+        self.assertEqual(self.item_dean.cleared_by_user_id, self.dean_user.id)
+        self.assertIsNotNone(self.item_dean.cleared_at)
+
+        # All items are cleared -> parent clearance status must be completed
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.COMPLETED)
+        self.assertIsNotNone(self.student_clearance.date_completed)
+
+    def test_reverting_item_reverts_completion_status(self):
+        # Start with all cleared
+        self.item_library.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item_library.cleared_by_user = self.librarian_user
+        self.item_library.save()
+
+        self.item_dean.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item_dean.cleared_by_user = self.dean_user
+        self.item_dean.save()
+
+        self.student_clearance.status = StudentClearance.ClearanceStatus.COMPLETED
+        self.student_clearance.save()
+
+        # Dean flags an issue on Step 2
+        self.client.force_authenticate(user=self.dean_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_dean.id}/",
+            {"status": StudentClearanceItem.ItemStatus.HAS_ISSUE, "remarks": "Missing department clearance form"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.item_dean.refresh_from_db()
+        self.assertEqual(self.item_dean.status, StudentClearanceItem.ItemStatus.HAS_ISSUE)
+        self.assertIsNone(self.item_dean.cleared_by_user)
+        self.assertIsNone(self.item_dean.cleared_at)
+
+        # Parent clearance should revert to in_progress and date_completed to None
+        self.student_clearance.refresh_from_db()
+        self.assertEqual(self.student_clearance.status, StudentClearance.ClearanceStatus.IN_PROGRESS)
+        self.assertIsNone(self.student_clearance.date_completed)
+
+    def test_signatory_dashboard_actionable_filter(self):
+        # Step 1 is PENDING, Step 2 is PENDING
+        self.client.force_authenticate(user=self.dean_user)
+
+        # Dean with actionable_only=true should see 0 students
+        resp_actionable = self.client.get("/api/v1/student-clearance-items/signatory-dashboard/?actionable_only=true")
+        self.assertEqual(resp_actionable.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_actionable.data["students_count"], 0)
+
+        # Dean without actionable_only should see the student with is_actionable=False
+        resp_all = self.client.get("/api/v1/student-clearance-items/signatory-dashboard/")
+        self.assertEqual(resp_all.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_all.data["students_count"], 1)
+        dean_items = resp_all.data["assigned_clearances"][0]["items"]
+        self.assertFalse(dean_items[0]["is_actionable"])
+
+        # Now librarian clears Step 1
+        self.item_library.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item_library.save()
+
+        # Now Dean with actionable_only=true should see the student with is_actionable=True
+        resp_actionable_now = self.client.get("/api/v1/student-clearance-items/signatory-dashboard/?actionable_only=true")
+        self.assertEqual(resp_actionable_now.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_actionable_now.data["students_count"], 1)
+        actionable_items = resp_actionable_now.data["assigned_clearances"][0]["items"]
+        self.assertTrue(actionable_items[0]["is_actionable"])
+
+    def test_audit_fields_cannot_be_tampered_by_client(self):
+        # First clear step 1 so step 2 is valid
+        self.item_library.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item_library.save()
+
+        # Dean attempts to forge cleared_by_user and cleared_at
+        self.client.force_authenticate(user=self.dean_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_dean.id}/",
+            {
+                "status": StudentClearanceItem.ItemStatus.CLEARED,
+                "cleared_by_user": 99999,
+                "cleared_at": "1999-01-01T00:00:00Z",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.item_dean.refresh_from_db()
+        # Must be Dean user, not 99999
+        self.assertEqual(self.item_dean.cleared_by_user_id, self.dean_user.id)
+        # Cleared at must be near current time, not 1999
+        self.assertNotEqual(self.item_dean.cleared_at.year, 1999)
+
+
+class DeficiencyAndProofTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        self.school = School.objects.create(school_name="DNSC", short_name="DNSC", location="Panabo City")
+        self.institute = Institute.objects.create(institute_name="Institute of Computing", acronym="IC", school=self.school)
+        self.program = Program.objects.create(name="BS in Information Technology", acronym="BSIT", institute=self.institute)
+
+        self.librarian_group, _ = Group.objects.get_or_create(name=Roles.LIBRARIAN)
+        self.student_group, _ = Group.objects.get_or_create(name=Roles.STUDENT)
+
+        self.librarian_user = User.objects.create_user(
+            username="librarian_test",
+            email="librarian_test@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+            is_staff=True,
+        )
+        self.librarian_user.groups.add(self.librarian_group)
+
+        # Student 1
+        self.student_user1 = User.objects.create_user(
+            username="student_one",
+            email="student1@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.student_user1.groups.add(self.student_group)
+        self.student1 = Student.objects.create(
+            s_studentID="2024111111",
+            s_fname="Pedro",
+            s_lname="Penduko",
+            s_lvl=3,
+            program=self.program,
+            user=self.student_user1,
+        )
+
+        # Student 2
+        self.student_user2 = User.objects.create_user(
+            username="student_two",
+            email="student2@dnsc.edu.ph",
+            password="password123",
+            institute=self.institute,
+            school=self.school,
+        )
+        self.student_user2.groups.add(self.student_group)
+        self.student2 = Student.objects.create(
+            s_studentID="2024222222",
+            s_fname="Cardo",
+            s_lname="Dalisay",
+            s_lvl=3,
+            program=self.program,
+            user=self.student_user2,
+        )
+
+        self.clearance_type = ClearanceType.objects.create(
+            institute=self.institute,
+            name="1st Sem Clearance",
+            academic_year="2026-2027",
+            semester="1st",
+            is_active=True,
+            is_issued=True,
+            target_year_levels=[3],
+        )
+
+        self.req_library = ClearanceRequirement.objects.create(
+            clearance_type=self.clearance_type,
+            name="Library Clearance",
+            authorizing_role=self.librarian_group,
+            order_sequence=1,
+        )
+
+        self.student_clearance1 = StudentClearance.objects.create(
+            student=self.student1,
+            clearance_type=self.clearance_type,
+            status=StudentClearance.ClearanceStatus.PENDING,
+        )
+
+        self.item_library1 = StudentClearanceItem.objects.create(
+            student_clearance=self.student_clearance1,
+            requirement=self.req_library,
+            status=StudentClearanceItem.ItemStatus.PENDING,
+        )
+
+    @patch("api.utils.cloudinary.cloudinary_utils.upload_image_versioned")
+    def test_student_can_upload_proof(self, mock_upload):
+        mock_upload.return_value = UploadedImage(
+            secure_url="https://res.cloudinary.com/demo/image/upload/proof1.png",
+            public_id="clearance/proofs/proof1",
+            version=1,
+        )
+
+        self.client.force_authenticate(user=self.student_user1)
+        test_file = SimpleUploadedFile("receipt.png", b"file_content", content_type="image/png")
+
+        response = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/upload-proof/",
+            {"file": test_file, "proof_notes": "Paid library penalty"},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.proof_attachment, "clearance/proofs/proof1")
+        self.assertEqual(self.item_library1.cloudinary_version, 1)
+        self.assertEqual(self.item_library1.proof_notes, "Paid library penalty")
+        self.assertIsNotNone(self.item_library1.proof_uploaded_at)
+
+        # Signatory should have received a notification
+        notif = Notification.objects.filter(
+            user=self.librarian_user,
+            type=Notification.NotificationType.CLEARANCE_PROOF_SUBMITTED,
+        ).first()
+        self.assertIsNotNone(notif)
+        self.assertIn("Pedro Penduko", notif.message)
+        self.assertIn("Library Clearance", notif.message)
+
+    def test_other_student_cannot_upload_proof_to_different_student(self):
+        self.client.force_authenticate(user=self.student_user2)
+        test_file = SimpleUploadedFile("hack.png", b"file_content", content_type="image/png")
+
+        response = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/upload-proof/",
+            {"file": test_file},
+            format="multipart",
+        )
+        self.assertIn(response.status_code, [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND])
+
+    def test_student_receives_notification_on_deficiency_issue(self):
+        self.client.force_authenticate(user=self.librarian_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/",
+            {
+                "status": StudentClearanceItem.ItemStatus.HAS_ISSUE,
+                "remarks": "Missing Java Programming Handbook",
+                "amount_due": "250.00",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        notif = Notification.objects.filter(
+            user=self.student_user1,
+            type=Notification.NotificationType.CLEARANCE_ISSUE,
+        ).first()
+        self.assertIsNotNone(notif)
+        self.assertIn("Missing Java Programming Handbook", notif.message)
+        self.assertIn("250.00", notif.message)
+
+    @patch("api.utils.cloudinary.cloudinary_utils.delete_image")
+    def test_student_can_remove_uploaded_proof(self, mock_delete):
+        self.item_library1.proof_attachment = "clearance/proofs/proof1"
+        self.item_library1.cloudinary_version = 1
+        self.item_library1.proof_notes = "Wrong receipt uploaded"
+        self.item_library1.save()
+
+        self.client.force_authenticate(user=self.student_user1)
+        response = self.client.delete(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/remove-proof/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.item_library1.refresh_from_db()
+        self.assertIsNone(self.item_library1.proof_attachment)
+        self.assertIsNone(self.item_library1.cloudinary_version)
+        self.assertIsNone(self.item_library1.proof_notes)
+
+    def test_cannot_remove_proof_if_item_already_cleared(self):
+        self.item_library1.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item_library1.proof_attachment = "clearance/proofs/proof1"
+        self.item_library1.save()
+
+        self.client.force_authenticate(user=self.student_user1)
+        response = self.client.delete(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/remove-proof/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already cleared", str(response.data))

@@ -291,7 +291,10 @@ class CanManageStudentClearanceItem(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        if request.method in SAFE_METHODS:
+        if request.method in SAFE_METHODS or getattr(view, "action", None) in [
+            "upload_proof",
+            "remove_proof",
+        ]:
             return True
 
         return (
@@ -310,7 +313,10 @@ class CanManageStudentClearanceItem(BasePermission):
             return True
 
         if get_user_student(user):
-            if request.method in SAFE_METHODS:
+            if request.method in SAFE_METHODS or getattr(view, "action", None) in [
+                "upload_proof",
+                "remove_proof",
+            ]:
                 return is_own_student_clearance_object(user, obj)
 
             return False

@@ -111,6 +111,7 @@ class Kind(str, Enum):
     GCASH_ACCOUNTS = "gcash_accounts"
     PAYMENTS = "payments"
     POSTS = "posts"
+    CLEARANCE_PROOFS = "clearance_proofs"
 
 ROOT = "codex_systems/"
 

@@ -32,7 +32,7 @@ from typing import List, Literal, NamedTuple, Optional, TypedDict
 
 from django.conf import settings
 
-IMAGE_EXTENSIONS = ["jpg", "jpeg", "png"]
+IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "pdf"]
 VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv"]
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB

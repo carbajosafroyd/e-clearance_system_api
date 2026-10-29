@@ -1,11 +1,11 @@
 from django.contrib.auth.models import Group
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, OuterRef, Exists
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from drf_spectacular.utils import extend_schema
 
 
@@ -31,6 +31,10 @@ from api.clearance.serializers import (
     GroupSlimSerializer,
 )
 from api.clearance.services.issuance_service import issue_clearance_to_target_students
+from api.clearance.services.status_service import (
+    validate_sequential_clearance,
+    evaluate_student_clearance_status,
+)
 from api.rbac.scoping import is_school_wide, is_student_only, scope_queryset
 from .permissions import (
     IsClearanceAdminOrReadOnly,
@@ -813,6 +817,245 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
 
         return self.queryset.none()
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not (user.is_superuser or is_school_wide(user) or is_clearance_admin(user)):
+            raise ValidationError({"detail": "Only clearance admins can manually create clearance items."})
+
+        target_status = serializer.validated_data.get("status", StudentClearanceItem.ItemStatus.PENDING)
+        if target_status == StudentClearanceItem.ItemStatus.CLEARED:
+            sc = serializer.validated_data.get("student_clearance")
+            req = serializer.validated_data.get("requirement")
+            if sc and req:
+                preceding_uncleared = (
+                    StudentClearanceItem.objects.filter(
+                        student_clearance=sc,
+                        requirement__order_sequence__lt=req.order_sequence,
+                    )
+                    .exclude(status=StudentClearanceItem.ItemStatus.CLEARED)
+                )
+                if preceding_uncleared.exists():
+                    first_blocking = preceding_uncleared.select_related("requirement").first()
+                    raise ValidationError(
+                        {
+                            "detail": (
+                                f"Sequential clearance locked: '{first_blocking.requirement.name}' "
+                                f"(Step {first_blocking.requirement.order_sequence}) must be cleared first."
+                            )
+                        }
+                    )
+            serializer.validated_data["cleared_by_user"] = user
+            serializer.validated_data["cleared_at"] = timezone.now()
+
+        item = serializer.save(created_by=user, updated_by=user)
+        evaluate_student_clearance_status(item.student_clearance, actor=user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = serializer.instance
+        old_status = instance.status
+        target_status = serializer.validated_data.get("status", old_status)
+
+        # Enforce sequential signing when attempting to clear an item
+        if target_status == StudentClearanceItem.ItemStatus.CLEARED:
+            validate_sequential_clearance(instance)
+            serializer.validated_data["cleared_by_user"] = user
+            serializer.validated_data["cleared_at"] = timezone.now()
+        elif target_status in [
+            StudentClearanceItem.ItemStatus.PENDING,
+            StudentClearanceItem.ItemStatus.HAS_ISSUE,
+        ]:
+            # Reset clearance audit fields if item is reverted/flagged
+            serializer.validated_data["cleared_by_user"] = None
+            serializer.validated_data["cleared_at"] = None
+
+        if hasattr(instance, "updated_by"):
+            serializer.validated_data["updated_by"] = user
+
+        item = serializer.save()
+
+        # Automatically evaluate student clearance completion status
+        evaluate_student_clearance_status(item.student_clearance, actor=user)
+
+        # Trigger notifications on status transitions
+        if target_status == StudentClearanceItem.ItemStatus.CLEARED and old_status != StudentClearanceItem.ItemStatus.CLEARED:
+            from api.clearance.services.notification_service import notify_item_cleared
+            notify_item_cleared(item, actor=user)
+        elif target_status == StudentClearanceItem.ItemStatus.HAS_ISSUE and old_status != StudentClearanceItem.ItemStatus.HAS_ISSUE:
+            from api.clearance.services.notification_service import notify_deficiency_issue
+            notify_deficiency_issue(item, actor=user)
+
+        # Log audit entry
+        try:
+            from api.audits.models import AuditLog
+            from api.audits.services import AuditLogService
+
+            if target_status == StudentClearanceItem.ItemStatus.CLEARED:
+                item_action = AuditLog.Action.APPROVE
+            elif target_status == StudentClearanceItem.ItemStatus.HAS_ISSUE:
+                item_action = AuditLog.Action.REJECT
+            else:
+                item_action = AuditLog.Action.UPDATE
+
+            actor_type = AuditLog.ActorTypeChoices.STAFF
+            if getattr(user, "is_superuser", False) or is_clearance_admin(user):
+                actor_type = AuditLog.ActorTypeChoices.ADMIN
+
+            AuditLogService.log_action(
+                system=AuditLog.System.CLEARANCE,
+                entity_type="StudentClearanceItem",
+                entity_id=item.id,
+                action=item_action,
+                actor_type=actor_type,
+                actor_id=user.id,
+                old_values={"status": old_status},
+                new_values={
+                    "status": item.status,
+                    "remarks": item.remarks,
+                    "amount_due": str(item.amount_due) if item.amount_due is not None else None,
+                },
+            )
+        except Exception:
+            pass
+
+    def perform_destroy(self, instance):
+        sc = instance.student_clearance
+        instance.delete()
+        evaluate_student_clearance_status(sc, actor=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="upload-proof")
+    def upload_proof(self, request, pk=None):
+        item = self.get_object()
+        user = request.user
+
+        # Only the student who owns this clearance or a clearance admin can upload proof
+        student = getattr(user, "student", None)
+        item_student = item.student_clearance.student
+
+        if not (user.is_superuser or is_clearance_admin(user)):
+            if not student or student.id != item_student.id:
+                raise PermissionDenied("You do not have permission to upload proof for another student's clearance.")
+
+        file = request.FILES.get("file") or request.FILES.get("proof")
+        if not file:
+            raise ValidationError({"file": "A proof file (image or PDF) is required."})
+
+        proof_notes = request.data.get("proof_notes") or request.data.get("remarks") or ""
+
+        from api.utils.cloudinary.paths import folder_for, tags_for, Kind
+        from api.utils.cloudinary.cloudinary_utils import upload_image_versioned, delete_image
+
+        try:
+            folder = folder_for(item_student, Kind.CLEARANCE_PROOFS)
+            tags = tags_for(item_student) + [f"requirement:{item.requirement_id}", f"item:{item.id}"]
+            uploaded = upload_image_versioned(file, folder=folder, tags=tags)
+        except Exception as e:
+            raise ValidationError({"file": f"Failed to upload file to storage: {str(e)}"})
+
+        # If previous proof existed, delete it from Cloudinary
+        if item.proof_attachment:
+            try:
+                delete_image(item.proof_attachment, version=item.cloudinary_version)
+            except Exception:
+                pass
+
+        item.proof_attachment = uploaded.public_id
+        item.cloudinary_version = uploaded.version
+        item.proof_notes = proof_notes
+        item.proof_uploaded_at = timezone.now()
+        item.updated_by = user
+        item.save(
+            update_fields=[
+                "proof_attachment",
+                "cloudinary_version",
+                "proof_notes",
+                "proof_uploaded_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+
+        # Notify signatories
+        from api.clearance.services.notification_service import notify_proof_submitted
+        notify_proof_submitted(item, student_user=user)
+
+        # Log audit entry
+        try:
+            from api.audits.models import AuditLog
+            from api.audits.services import AuditLogService
+
+            AuditLogService.log_action(
+                system=AuditLog.System.CLEARANCE,
+                entity_type="StudentClearanceItem",
+                entity_id=item.id,
+                action=AuditLog.Action.UPDATE,
+                actor_type=AuditLog.ActorTypeChoices.STUDENT if student else AuditLog.ActorTypeChoices.STAFF,
+                actor_id=user.id,
+                old_values={"proof_attachment": None},
+                new_values={
+                    "proof_attachment": item.proof_attachment,
+                    "proof_notes": item.proof_notes,
+                    "proof_uploaded_at": str(item.proof_uploaded_at),
+                },
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "detail": "Proof of compliance uploaded successfully.",
+                "item": StudentClearanceItemReadSerializer(item).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["delete"], url_path="remove-proof")
+    def remove_proof(self, request, pk=None):
+        item = self.get_object()
+        user = request.user
+
+        student = getattr(user, "student", None)
+        item_student = item.student_clearance.student
+
+        if not (user.is_superuser or is_clearance_admin(user)):
+            if not student or student.id != item_student.id:
+                raise PermissionDenied("You do not have permission to modify this proof.")
+
+        if not item.proof_attachment:
+            raise ValidationError({"detail": "No proof attachment exists on this item."})
+
+        if item.status == StudentClearanceItem.ItemStatus.CLEARED:
+            raise ValidationError({"detail": "Cannot remove proof from an already cleared item."})
+
+        from api.utils.cloudinary.cloudinary_utils import delete_image
+        try:
+            delete_image(item.proof_attachment, version=item.cloudinary_version)
+        except Exception:
+            pass
+
+        item.proof_attachment = None
+        item.cloudinary_version = None
+        item.proof_notes = None
+        item.proof_uploaded_at = None
+        item.updated_by = user
+        item.save(
+            update_fields=[
+                "proof_attachment",
+                "cloudinary_version",
+                "proof_notes",
+                "proof_uploaded_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+
+        return Response(
+            {
+                "detail": "Proof attachment removed successfully.",
+                "item": StudentClearanceItemReadSerializer(item).data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["get"], url_path="signatory-dashboard")
     def signatory_dashboard(self, request):
@@ -834,6 +1077,20 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
                     Q(requirement__authorizing_role_id__in=user_group_ids)
                     | Q(requirement__authorizing_roles__id__in=user_group_ids)
                 ).distinct()
+
+        # Check for uncleared predecessor items in sequential order
+        uncleared_predecessors = StudentClearanceItem.objects.filter(
+            student_clearance=OuterRef("student_clearance"),
+            requirement__order_sequence__lt=OuterRef("requirement__order_sequence"),
+        ).exclude(status=StudentClearanceItem.ItemStatus.CLEARED)
+
+        queryset = queryset.annotate(
+            has_uncleared_predecessor=Exists(uncleared_predecessors)
+        )
+
+        actionable_only = request.query_params.get("actionable_only")
+        if actionable_only is not None and actionable_only.lower() in ["true", "1", "yes"]:
+            queryset = queryset.filter(has_uncleared_predecessor=False)
 
         search = request.query_params.get("search")
         if search:
@@ -897,6 +1154,7 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
                     "requirement_name": item.requirement.name,
                     **serialize_item_authorizing_roles(item.requirement),
                     "order_sequence": item.requirement.order_sequence,
+                    "is_actionable": not getattr(item, "has_uncleared_predecessor", False),
                     "status": item.status,
                     "amount_due": item.amount_due,
                     "remarks": item.remarks,

@@ -293,6 +293,8 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
         source="requirement.order_sequence",
         read_only=True,
     )
+    is_actionable = serializers.SerializerMethodField()
+    proof_attachment_url = serializers.SerializerMethodField()
     cleared_by_user_id = serializers.IntegerField(read_only=True)
     cleared_by_name = serializers.SerializerMethodField()
 
@@ -308,9 +310,15 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
             "authorizing_role_names",
             "authorizing_roles",
             "order_sequence",
+            "is_actionable",
             "status",
             "amount_due",
             "remarks",
+            "proof_attachment",
+            "proof_attachment_url",
+            "cloudinary_version",
+            "proof_notes",
+            "proof_uploaded_at",
             "cleared_by_user_id",
             "cleared_by_name",
             "cleared_at",
@@ -318,6 +326,16 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_is_actionable(self, obj) -> bool:
+        if obj.status == StudentClearanceItem.ItemStatus.CLEARED:
+            return False
+        if hasattr(obj, "has_uncleared_predecessor"):
+            return not obj.has_uncleared_predecessor
+        return not StudentClearanceItem.objects.filter(
+            student_clearance=obj.student_clearance,
+            requirement__order_sequence__lt=obj.requirement.order_sequence,
+        ).exclude(status=StudentClearanceItem.ItemStatus.CLEARED).exists()
 
     def get_authorizing_roles(self, obj):
         return GroupSlimSerializer(get_requirement_authorizing_roles(obj.requirement), many=True).data
@@ -327,6 +345,15 @@ class StudentClearanceItemReadSerializer(serializers.ModelSerializer):
 
     def get_authorizing_role_names(self, obj):
         return [role.name for role in get_requirement_authorizing_roles(obj.requirement)]
+
+    def get_proof_attachment_url(self, obj):
+        if not obj.proof_attachment:
+            return None
+        from api.utils.cloudinary.cloudinary_utils import get_file_url
+        try:
+            return get_file_url(obj.proof_attachment, version=obj.cloudinary_version)
+        except Exception:
+            return None
 
     def get_cleared_by_name(self, obj):
         user = obj.cleared_by_user
@@ -352,10 +379,21 @@ class StudentClearanceItemWriteSerializer(serializers.ModelSerializer):
             "status",
             "amount_due",
             "remarks",
+            "proof_attachment",
+            "cloudinary_version",
+            "proof_notes",
+            "proof_uploaded_at",
             "cleared_by_user",
             "cleared_at",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = [
+            "id",
+            "cleared_by_user",
+            "cleared_at",
+            "proof_attachment",
+            "cloudinary_version",
+            "proof_uploaded_at",
+        ]
 
     def validate(self, attrs):
         student_clearance = attrs.get("student_clearance") or getattr(self.instance, "student_clearance", None)
@@ -402,6 +440,7 @@ class StudentClearanceSlimSerializer(serializers.ModelSerializer):
             "academic_year",
             "semester",
             "status",
+            "verification_token",
             "date_initiated",
             "date_completed",
             "is_enrolled",
@@ -451,6 +490,7 @@ class StudentClearanceReadSerializer(serializers.ModelSerializer):
             "academic_year",
             "semester",
             "status",
+            "verification_token",
             "date_initiated",
             "date_completed",
             "is_enrolled",
