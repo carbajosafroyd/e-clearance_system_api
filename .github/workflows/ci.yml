@@ -34,6 +34,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Clearance Tests
+      - name: System Diagnostics & OpenAPI Validation
         run: |
-          python manage.py test api.clearance.tests
+          python manage.py check
+          python manage.py spectacular --validate
+
+      - name: Run Full Test Suite
+        run: |
+          python manage.py test

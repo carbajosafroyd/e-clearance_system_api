@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
+db.sqlite3
+staticfiles
+brain
+.gemini
+*.md

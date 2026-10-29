@@ -180,6 +180,10 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            "charset": "utf8mb4",
+        },
     }
 }
 
@@ -334,6 +338,8 @@ SPECTACULAR_SETTINGS = {
         "StudentClearanceStatusEnum": "api.clearance.models.StudentClearance.ClearanceStatus",
         "StudentClearanceItemStatusEnum": "api.clearance.models.StudentClearanceItem.ItemStatus",
         "AcademicYearEnum": "core.choices.AcademicYear.choices",
+        "AuditSystemEnum": "api.audits.models.AuditLog.System",
+        "SystemScopeEnum": "core.choices.SystemScope",
     },
 }
 
@@ -535,7 +541,7 @@ INVITE_EXPIRY_DAYS = int(os.getenv("INVITE_EXPIRY_DAYS", "3"))
 # HEALTH_CHECK_READINESS =["database", "cache"]
 
 # Only relevant if you keep the disk check enabled
-HEALTH_CHECK_DISK_MIN_PERCENT = 20
+HEALTH_CHECK_DISK_MIN_PERCENT = int(os.getenv("HEALTH_CHECK_DISK_MIN_PERCENT", "5"))
 
 # Only relevant if you keep the DNS check enabled
 HEALTH_CHECK_DNS_HOST = "api.instituteofcomputing.org"

@@ -5088,7 +5088,7 @@ components:
           readOnly: true
         system:
           allOf:
-          - $ref: '#/components/schemas/System8a1Enum'
+          - $ref: '#/components/schemas/AuditSystemEnum'
           readOnly: true
         entity_type:
           type: string
@@ -5159,7 +5159,7 @@ components:
           readOnly: true
         system:
           allOf:
-          - $ref: '#/components/schemas/System8a1Enum'
+          - $ref: '#/components/schemas/AuditSystemEnum'
           readOnly: true
         entity_type:
           type: string
@@ -5413,6 +5413,22 @@ components:
       - actor_type
       - actor_username
       - entry_count
+    AuditSystemEnum:
+      enum:
+      - collection
+      - locker
+      - attendance
+      - voting
+      - clearance
+      - platform
+      type: string
+      description: |-
+        * `collection` - Collection
+        * `locker` - Locker
+        * `attendance` - Attendance
+        * `voting` - Voting
+        * `clearance` - Clearance
+        * `platform` - Platform
     AuthUser:
       type: object
       description: |-
@@ -5603,7 +5619,7 @@ components:
           writeOnly: true
         order_sequence:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
       required:
@@ -6086,15 +6102,13 @@ components:
           readOnly: true
         logo_cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         background_cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         school:
           $ref: '#/components/schemas/SchoolRead'
@@ -6366,15 +6380,13 @@ components:
           readOnly: true
         target_year_level:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
         total_recipients:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
         created_at:
           type: string
           format: date-time
@@ -6986,7 +6998,7 @@ components:
           writeOnly: true
         order_sequence:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
     PatchedClearanceRoleSlim:
@@ -7119,7 +7131,7 @@ components:
           maxLength: 50
         max_floor:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
     PatchedSchoolUpdate:
@@ -7295,7 +7307,7 @@ components:
           maxLength: 50
         s_lvl:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
         s_status:
@@ -7306,9 +7318,8 @@ components:
           maxLength: 255
         cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         updated_by:
           type: integer
@@ -7357,7 +7368,7 @@ components:
           nullable: true
         system:
           allOf:
-          - $ref: '#/components/schemas/SystemSettingSystemEnum'
+          - $ref: '#/components/schemas/SystemScopeEnum'
           readOnly: true
         updated_at:
           type: string
@@ -7565,7 +7576,7 @@ components:
           maxLength: 50
         max_floor:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
       required:
@@ -7594,7 +7605,7 @@ components:
           maxLength: 50
         max_floor:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
       required:
@@ -7618,7 +7629,7 @@ components:
           maxLength: 50
         max_floor:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
       required:
@@ -8374,7 +8385,7 @@ components:
           maxLength: 50
         s_lvl:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
         s_status:
@@ -8385,9 +8396,8 @@ components:
           maxLength: 255
         cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         updated_by:
           type: integer
@@ -8478,7 +8488,7 @@ components:
           maxLength: 50
         s_lvl:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
         s_status:
@@ -8489,9 +8499,8 @@ components:
           maxLength: 255
         cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         updated_by:
           type: integer
@@ -8546,7 +8555,7 @@ components:
           maxLength: 50
         s_lvl:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 4294967295
           minimum: 0
           format: int64
         s_status:
@@ -8557,9 +8566,8 @@ components:
           maxLength: 255
         cloudinary_version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 65535
           minimum: 0
-          format: int64
           nullable: true
         program:
           type: integer
@@ -8617,21 +8625,21 @@ components:
       - last_name
       - profile
       - username
-    System8a1Enum:
+    SystemScopeEnum:
       enum:
       - collection
       - locker
       - attendance
-      - voting
       - clearance
+      - voting
       - platform
       type: string
       description: |-
-        * `collection` - Collection
-        * `locker` - Locker
-        * `attendance` - Attendance
-        * `voting` - Voting
-        * `clearance` - Clearance
+        * `collection` - Collection Management System
+        * `locker` - Locker Management System
+        * `attendance` - Attendance Management System
+        * `clearance` - Clearance Management System
+        * `voting` - Voting System
         * `platform` - Platform
     SystemSetting:
       type: object
@@ -8672,7 +8680,7 @@ components:
           nullable: true
         system:
           allOf:
-          - $ref: '#/components/schemas/SystemSettingSystemEnum'
+          - $ref: '#/components/schemas/SystemScopeEnum'
           readOnly: true
         updated_at:
           type: string
@@ -8697,22 +8705,6 @@ components:
       - setting_value
       - system
       - updated_at
-    SystemSettingSystemEnum:
-      enum:
-      - collection
-      - locker
-      - attendance
-      - clearance
-      - voting
-      - platform
-      type: string
-      description: |-
-        * `collection` - Collection Management System
-        * `locker` - Locker Management System
-        * `attendance` - Attendance Management System
-        * `clearance` - Clearance Management System
-        * `voting` - Voting System
-        * `platform` - Platform
     TokenRefresh:
       type: object
       properties:

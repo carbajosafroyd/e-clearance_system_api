@@ -7885,7 +7885,7 @@
                     "system": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/System8a1Enum"
+                                "$ref": "#/components/schemas/AuditSystemEnum"
                             }
                         ],
                         "readOnly": true
@@ -7981,7 +7981,7 @@
                     "system": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/System8a1Enum"
+                                "$ref": "#/components/schemas/AuditSystemEnum"
                             }
                         ],
                         "readOnly": true
@@ -8328,6 +8328,18 @@
                     "entry_count"
                 ]
             },
+            "AuditSystemEnum": {
+                "enum": [
+                    "collection",
+                    "locker",
+                    "attendance",
+                    "voting",
+                    "clearance",
+                    "platform"
+                ],
+                "type": "string",
+                "description": "* `collection` - Collection\n* `locker` - Locker\n* `attendance` - Attendance\n* `voting` - Voting\n* `clearance` - Clearance\n* `platform` - Platform"
+            },
             "AuthUser": {
                 "type": "object",
                 "description": "The `/api/v1/me/` payload.\n\nBeyond the profile fields, this carries the caller's access: `groups`\n(the role names, which the frontend's route guards match against) and\n`permissions` (every ``app_label.codename`` they hold, which is what the\nper-button checks read). `is_superuser` / `is_staff` mirror the two flags\nseveral viewsets still branch on server-side.\n\nBoth lists come from the same place the API enforces against, so the UI\ncan never offer an action the request would then be refused.\n\n`features` reports which optional modules this deployment runs. The\nfrontend has its own build-time flags, but the server's answer is the\nauthoritative one - an institute that runs the API with the contribution\nscheme off should see nothing of it whatever the bundle was built with.",
@@ -8558,7 +8570,7 @@
                     },
                     "order_sequence": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -9201,16 +9213,14 @@
                     },
                     "logo_cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "background_cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "school": {
@@ -9558,16 +9568,14 @@
                     },
                     "target_year_level": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64",
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
                         "nullable": true
                     },
                     "total_recipients": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
-                        "format": "int64"
+                        "maximum": 2147483647,
+                        "minimum": -2147483648
                     },
                     "created_at": {
                         "type": "string",
@@ -10410,7 +10418,7 @@
                     },
                     "order_sequence": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -10582,7 +10590,7 @@
                     },
                     "max_floor": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -10806,7 +10814,7 @@
                     },
                     "s_lvl": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     },
@@ -10820,9 +10828,8 @@
                     },
                     "cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "updated_by": {
@@ -10876,7 +10883,7 @@
                     "system": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SystemSettingSystemEnum"
+                                "$ref": "#/components/schemas/SystemScopeEnum"
                             }
                         ],
                         "readOnly": true
@@ -11149,7 +11156,7 @@
                     },
                     "max_floor": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -11190,7 +11197,7 @@
                     },
                     "max_floor": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -11221,7 +11228,7 @@
                     },
                     "max_floor": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     }
@@ -12146,7 +12153,7 @@
                     },
                     "s_lvl": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     },
@@ -12160,9 +12167,8 @@
                     },
                     "cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "updated_by": {
@@ -12275,7 +12281,7 @@
                     },
                     "s_lvl": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     },
@@ -12289,9 +12295,8 @@
                     },
                     "cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "updated_by": {
@@ -12361,7 +12366,7 @@
                     },
                     "s_lvl": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 4294967295,
                         "minimum": 0,
                         "format": "int64"
                     },
@@ -12375,9 +12380,8 @@
                     },
                     "cloudinary_version": {
                         "type": "integer",
-                        "maximum": 9223372036854775807,
+                        "maximum": 65535,
                         "minimum": 0,
-                        "format": "int64",
                         "nullable": true
                     },
                     "program": {
@@ -12446,17 +12450,17 @@
                     "username"
                 ]
             },
-            "System8a1Enum": {
+            "SystemScopeEnum": {
                 "enum": [
                     "collection",
                     "locker",
                     "attendance",
-                    "voting",
                     "clearance",
+                    "voting",
                     "platform"
                 ],
                 "type": "string",
-                "description": "* `collection` - Collection\n* `locker` - Locker\n* `attendance` - Attendance\n* `voting` - Voting\n* `clearance` - Clearance\n* `platform` - Platform"
+                "description": "* `collection` - Collection Management System\n* `locker` - Locker Management System\n* `attendance` - Attendance Management System\n* `clearance` - Clearance Management System\n* `voting` - Voting System\n* `platform` - Platform"
             },
             "SystemSetting": {
                 "type": "object",
@@ -12496,7 +12500,7 @@
                     "system": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SystemSettingSystemEnum"
+                                "$ref": "#/components/schemas/SystemScopeEnum"
                             }
                         ],
                         "readOnly": true
@@ -12529,18 +12533,6 @@
                     "system",
                     "updated_at"
                 ]
-            },
-            "SystemSettingSystemEnum": {
-                "enum": [
-                    "collection",
-                    "locker",
-                    "attendance",
-                    "clearance",
-                    "voting",
-                    "platform"
-                ],
-                "type": "string",
-                "description": "* `collection` - Collection Management System\n* `locker` - Locker Management System\n* `attendance` - Attendance Management System\n* `clearance` - Clearance Management System\n* `voting` - Voting System\n* `platform` - Platform"
             },
             "TokenRefresh": {
                 "type": "object",
