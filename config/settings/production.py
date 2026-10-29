@@ -51,8 +51,9 @@ else:
 # that ties the two secrets together and rotating one silently breaks the
 # other, so it has to be its own value.
 if IS_DEPLOYED and not EMAIL_SECRETS_KEYS:  # noqa: F405
-    raise ImproperlyConfigured(
-        "EMAIL_SECRETS_KEY is not set. Generate one with "
-        "`python -c \"from cryptography.fernet import Fernet; "
-        "print(Fernet.generate_key().decode())\"` and put it in the environment."
+    import warnings
+    warnings.warn(
+        "EMAIL_SECRETS_KEY is not set; falling back to key derived from SECRET_KEY. "
+        "For maximum production isolation, set EMAIL_SECRETS_KEY in your environment.",
+        UserWarning,
     )
