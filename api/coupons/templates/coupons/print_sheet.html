@@ -1,0 +1,171 @@
+{% comment %}
+A sheet of coupons to cut up.
+
+Tables, not flexbox: xhtml2pdf's CSS support stops well short of grid, and a
+layout that silently collapses is worse than a plain one that does not. Two
+per row, roughly ten per A4 page.
+
+The footer carries a run number and page count on purpose — when somebody
+finds a stray sheet in a drawer in November, that line is how they work out
+whether it was already revoked.
+{% endcomment %}
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 1.2cm;
+            @frame footer {
+                -pdf-frame-content: footer;
+                bottom: 0.6cm;
+                margin-left: 1.2cm;
+                margin-right: 1.2cm;
+                height: 1cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #111827;
+            font-size: 9pt;
+        }
+
+        h1 {
+            font-size: 13pt;
+            margin: 0 0 2px;
+        }
+
+        .lede {
+            font-size: 8.5pt;
+            color: #4b5563;
+            margin: 0 0 10px;
+        }
+
+        table.sheet {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px;
+        }
+
+        td.ticket {
+            width: 50%;
+            border: 1.2px dashed #9ca3af;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+
+        .code {
+            font-family: Courier, monospace;
+            font-size: 13pt;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin: 2px 0 4px;
+        }
+
+        .value {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #065f46;
+        }
+
+        .meta {
+            font-size: 7.5pt;
+            color: #4b5563;
+            line-height: 1.35;
+        }
+
+        .named {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        /*
+         * Big enough to scan across a desk. At 58px this printed at about
+         * 1.5cm, which a phone camera could resolve only when held still and
+         * close - on a coupon whose entire purpose is being scanned off a
+         * table at an event. 110px is roughly 2.9cm.
+         *
+         * The ticket stays two-per-row: half of A4 inside the margins is
+         * about 8.7cm, so 2.9cm of QR still leaves room for the code beside
+         * it, which is why the code dropped to 13pt.
+         */
+        .qr {
+            width: 110px;
+            height: 110px;
+        }
+
+        .scan-hint {
+            font-size: 6.5pt;
+            color: #6b7280;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        #footer {
+            font-size: 7pt;
+            color: #6b7280;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>{{ batch.name }}</h1>
+    <p class="lede">
+        {{ value_label }} &middot; applies to {{ applies_to }} &middot;
+        {{ term_label }} &middot; valid until {{ expires|date:"d M Y" }}
+        {% if batch.reason %} &middot; {{ batch.reason }}{% endif %}
+    </p>
+
+    <table class="sheet">
+        {% for row in tickets|slice:":0" %}{% endfor %}
+        <tr>
+            {% for ticket in tickets %}
+            <td class="ticket">
+                <table width="100%">
+                    <tr>
+                        <td>
+                            <div class="value">{{ value_label }}</div>
+                            <div class="code">{{ ticket.code }}</div>
+                            {% if ticket.student %}
+                            <div class="named">{{ ticket.student }}</div>
+                            <div class="meta">{{ ticket.student_id }}</div>
+                            {% else %}
+                            <div class="meta">Bearer coupon &mdash; anyone may use it</div>
+                            {% endif %}
+                            <div class="meta">
+                                {{ applies_to }}{% if term_label != "Any term" %} &middot; {{ term_label }}{% endif %}<br>
+                                Expires {{ expires|date:"d M Y" }}
+                            </div>
+                        </td>
+                        <td width="116" align="right" valign="top">
+                            <img class="qr" src="{{ ticket.qr }}" alt="">
+                            <div class="scan-hint">Scan to claim</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            {% if forloop.counter|divisibleby:2 and not forloop.last %}
+        </tr>
+        <tr>
+            {% endif %}
+            {% endfor %}
+            {% if tickets|length|divisibleby:2 %}{% else %}
+            <td class="ticket" style="border: none;"></td>
+            {% endif %}
+        </tr>
+    </table>
+
+    <div id="footer">
+        {{ batch.name }} &middot; batch #{{ batch.pk }} &middot;
+        {{ batch.total_created }} coupon(s) &middot;
+        generated {{ generated|date:"d M Y H:i" }} &middot;
+        page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+</body>
+
+</html>

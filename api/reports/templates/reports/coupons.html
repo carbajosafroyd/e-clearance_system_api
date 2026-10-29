@@ -1,0 +1,118 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ COUPONS - every batch, every code, every redemption. Context: `report`
+ from build_coupons_report (summary, batches, coupons, redemptions).
+{% endcomment %}
+{% block report_title %}Coupons Report{% endblock %}
+{% block run_details %}{% include "reports/_module_run_details.html" %}{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Taken off fees</div>
+            <div class="card-value">PHP {{ report.summary.amount_applied|floatformat:2|intcomma }}</div>
+            <div class="card-note">{{ report.summary.applied }} applied &middot; {{ report.summary.students_helped }} student(s) &middot; PHP {{ report.summary.amount_reversed|floatformat:2|intcomma }} reversed</div>
+        </td>
+        <td>
+            <div class="card-label">Coupons issued</div>
+            <div class="card-value">{{ report.summary.issued|intcomma }}</div>
+            <div class="card-note">{{ report.summary.batches }} batch(es) &middot; {{ report.summary.bound }} bound &middot; {{ report.summary.bearer }} bearer</div>
+        </td>
+        <td>
+            <div class="card-label">Could still be spent</div>
+            <div class="card-value">PHP {{ report.summary.outstanding_value|floatformat:2|intcomma }}</div>
+            <div class="card-note">{{ report.summary.claimed }} held &middot; {{ report.summary.revoked }} voided &middot; {{ report.summary.expired }} expired</div>
+        </td>
+    </tr>
+</table>
+
+<h2>Batches</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Batch</th><th width="12%">Value</th><th width="14%">Term / window</th>
+            <th width="8%">Status</th><th class="right" width="7%">Issued</th><th class="right" width="7%">Held</th>
+            <th class="right" width="7%">Applied</th><th class="right" width="7%">Voided</th>
+            <th class="right" width="12%">Applied PHP</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.batches %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.name }}<br><span class="muted">{{ row.applies_to }}{% if row.reason %} &middot; {{ row.reason|truncatechars:60 }}{% endif %} &middot; by {{ row.issued_by|default:"—" }}</span></td>
+            <td>{{ row.value_label }}</td>
+            <td>{{ row.term_label }}<br><span class="muted">{{ row.valid_from|slice:":10" }} to {{ row.expires_at|slice:":10" }}</span></td>
+            <td>{{ row.status_label }}</td>
+            <td class="num">{{ row.issued }}</td>
+            <td class="num">{{ row.claimed }}</td>
+            <td class="num">{{ row.applied }}</td>
+            <td class="num">{{ row.revoked }}</td>
+            <td class="num">PHP {{ row.amount_applied|floatformat:2|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="9" class="empty">No batch was issued in this period.</td></tr>
+    {% endfor %}
+        <tr class="total">
+            <td colspan="4">Total: {{ report.summary.batches }} batch(es)</td>
+            <td class="num">{{ report.summary.issued }}</td>
+            <td class="num">{{ report.summary.claimed }}</td>
+            <td class="num">{{ report.summary.applied }}</td>
+            <td class="num">{{ report.summary.revoked }}</td>
+            <td class="num">PHP {{ report.summary.amount_applied|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Redemptions</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="14%">Code</th><th width="22%">Student</th><th>Fee</th>
+            <th class="right" width="11%">Amount</th><th width="9%">Status</th>
+            <th width="9%">Applied</th><th width="18%">Reversal</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.redemptions %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.code }}<br><span class="muted">{{ row.batch|truncatechars:28 }}</span></td>
+            <td>{{ row.student_name }}<br><span class="muted">{{ row.student_number }} &middot; {{ row.program }} {{ row.year_level }}{{ row.set }}</span></td>
+            <td>{% if row.fee_id %}#{{ row.fee_id }} {{ row.fee_category }}<br><span class="muted">{{ row.fee_term }}</span>{% else %}<span class="muted">not yet applied</span>{% endif %}</td>
+            <td class="num">{% if row.fee_id %}PHP {{ row.amount|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+            <td>{{ row.status_label }}</td>
+            <td>{{ row.applied_at|slice:":10"|default:"—" }}</td>
+            <td>{% if row.reversed_at %}{{ row.reversed_by|default:"—" }} {{ row.reversed_at|slice:":10" }}{% if row.reversal_reason %}: {{ row.reversal_reason|truncatechars:70 }}{% endif %}{% else %}—{% endif %}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="7" class="empty">No coupon has been claimed or applied in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Coupons</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="15%">Code</th><th width="22%">Batch</th><th>Holder</th>
+            <th width="7%">Uses</th><th width="12%">Status</th><th width="10%">Expires</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.coupons %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.code }}</td>
+            <td>{{ row.batch|truncatechars:34 }}<br><span class="muted">{{ row.value_label }}</span></td>
+            <td>{% if row.bound %}{{ row.student_name }} <span class="muted">({{ row.student_number }})</span>{% else %}<span class="muted">Bearer — anyone may use it</span>{% endif %}</td>
+            <td>{{ row.uses_taken }}/{{ row.max_redemptions }}</td>
+            <td>{{ row.status_label }}{% if row.revocation_reason %}<br><span class="muted">{{ row.revocation_reason|truncatechars:50 }}</span>{% endif %}</td>
+            <td>{{ row.expires_at|slice:":10" }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="empty">No coupon in this period.</td></tr>
+    {% endfor %}
+        <tr class="total"><td colspan="6">Total: {{ report.summary.issued }} coupon(s)</td></tr>
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,123 @@
+############################################
+# 🐍 Python
+############################################
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+*.egg-info/
+dist/
+build/
+.eggs/
+
+pip-wheel-metadata/
+*.so
+
+############################################
+# 🌐 Virtual Environments
+############################################
+
+venv/
+env/
+ENV/
+.venv/
+.env/
+.env.production
+# .env.*
+
+############################################
+# 🧪 Testing / Coverage
+############################################
+
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+############################################
+# 📦 Django Specific
+############################################
+
+*.log
+db.sqlite3
+
+# Django migrations (optional: usually you DO NOT ignore these in real projects)
+# Uncomment ONLY if you're regenerating migrations often in dev
+# */migrations/*.py
+# */migrations/*.pyc
+# !*/migrations/__init__.py
+
+media/
+staticfiles/
+
+############################################
+# ⚡ FastAPI / API projects
+############################################
+
+instance/
+*.db
+
+############################################
+# 🧠 IDE / Editor (VSCode, PyCharm, etc.)
+############################################
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+############################################
+# 💻 OS files
+############################################
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+############################################
+# 🔐 Environment variables
+############################################
+
+.env
+.env.local
+.env.production.*
+.env.staging
+
+############################################
+# 🐳 Docker (optional)
+############################################
+
+docker-compose.override.yml
+*.pid
+
+############################################
+# 📊 Logs & runtime
+############################################
+
+*.log
+logs/
+runtime/
+
+# Local SSL certificates
+local_cert.crt
+local_cert.key
+
+# Alternative generic rule to catch any local certs
+*.crt
+*.key
+*.pem
+
+
+passenger_wsgi.py
+tmp/*
+
+in_consideration
+
+docs

@@ -1,0 +1,84 @@
+{% extends "email_templates/base.html" %}
+
+{% comment %}
+Step 2: sent to the NEW address. Opening the link is what actually applies
+the change, so this message carries everything the reader needs to judge it:
+which account, which address it replaces, who asked, when, and for how long
+the link is good. Context: link, expiry_minutes, current_email, new_email,
+account_username, account_name, requested_at + email_brand().
+{% endcomment %}
+
+{% block title %}Confirm your new email address{% endblock %}
+{% block preheader %}Open the link to make {{ new_email }} the email on your {{ brand_name }} account.{% endblock %}
+{% block eyebrow %}Email change{% if not initiated_by %} &middot; Step 2 of 2{% endif %}{% endblock %}
+{% block heading %}Confirm your new email address{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    {% if initiated_by %}
+    <strong style="color:#0f172a;">{{ initiated_by }}</strong>, an administrator at {{ brand_name }},
+    entered this address as the new email for the account below - usually because
+    the old mailbox can no longer be reached.
+    {% else %}
+    This address was entered as the new email for a {{ brand_name }} account.
+    {% endif %}
+    Confirming replaces the old address — sign-in notices, fee reminders and
+    password resets will come here instead.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:24px 0 0; background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                {% include "email_templates/partials/_row.html" with label="Account" value=account_username strong=True %}
+                {% if account_name %}
+                {% include "email_templates/partials/_row.html" with label="Name on file" value=account_name %}
+                {% endif %}
+                {% if institute_name %}
+                {% include "email_templates/partials/_row.html" with label="Institute" value=institute_name %}
+                {% endif %}
+                {% include "email_templates/partials/_row.html" with label="Current email" value=current_email %}
+                {% include "email_templates/partials/_row.html" with label="New email" value=new_email strong=True %}
+                {% include "email_templates/partials/_row.html" with label="Requested" value=requested_at %}
+                {% if initiated_by %}
+                {% include "email_templates/partials/_row.html" with label="Requested by" value=initiated_by %}
+                {% endif %}
+            </table>
+        </td>
+    </tr>
+</table>
+
+{% include "email_templates/partials/_button.html" with url=link label="Confirm this email address" %}
+{% include "email_templates/partials/_fallback_link.html" with url=link %}
+
+<p style="margin:20px 0 0; font-size:13px; line-height:1.6; color:#64748b; text-align:center;">
+    This link expires in <strong style="color:#0f172a;">{{ expiry_minutes }} minutes</strong> and works once.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;">
+    <tr>
+        <td
+            style="padding:12px 14px; background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; line-height:1.65; color:#475569;">
+            <strong style="color:#0f172a;">What happens next</strong><br>
+            The old address stops receiving account mail and is told about the change.
+            Your username and password don't change — keep signing in with
+            <strong style="color:#0f172a;">{{ account_username }}</strong>.
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 0;">
+    <tr>
+        <td
+            style="padding:12px 14px; background-color:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; line-height:1.6; color:#7f1d1d;">
+            <strong>Don't recognise this account{% if initiated_by %}, or didn't ask for this{% endif %}?</strong>
+            Don't open the link. Without it, nothing changes and this address is never attached to the account.
+        </td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}
+You received this because someone entered this address as the new email for the account above.
+{% endblock %}

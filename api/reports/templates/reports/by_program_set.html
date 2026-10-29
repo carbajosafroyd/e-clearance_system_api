@@ -1,0 +1,126 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ BY PROGRAM, YEAR LEVEL AND SET.
+
+ A summary table first - one bold row per program, its year levels indented
+ beneath it - then the detail: for each program / year level / set, the
+ students with their fees indented under them, a set subtotal closing each
+ block and the program total closing each program.
+
+ Shapes: report.programs[] {program, totals, year_levels[] {year_level,
+ totals, sets[] {set, totals, students[] {student_number, student_name,
+ totals, fees[]}}}}, report.totals. Every totals object carries billed /
+ paid / balance / collection_rate; group levels add student_count.
+{% endcomment %}
+{% block report_title %}Collections by Program{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="34%">Program / year level</th>
+            <th class="right" width="10%">Students</th>
+            <th class="right">Billed</th>
+            <th class="right">Paid</th>
+            <th class="right">Balance</th>
+            <th class="right" width="9%">Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for program in report.programs %}
+        <tr class="total">
+            <td>{{ program.program }}</td>
+            <td class="num">{{ program.totals.student_count }}</td>
+            <td class="num">PHP {{ program.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ program.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ program.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ program.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+        {% for level in program.year_levels %}
+        <tr>
+            <td class="indent-1">Year {{ level.year_level }}</td>
+            <td class="num">{{ level.totals.student_count }}</td>
+            <td class="num">PHP {{ level.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ level.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ level.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ level.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+        {% endfor %}
+    {% empty %}
+        <tr><td colspan="6" class="empty">No fees were issued in this period.</td></tr>
+    {% endfor %}
+    {% if report.programs %}
+        <tr class="total">
+            <td>All programs</td>
+            <td class="num">{{ report.totals.student_count }}</td>
+            <td class="num">PHP {{ report.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ report.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+    {% endif %}
+    </tbody>
+</table>
+
+{% for program in report.programs %}
+<h2>{{ program.program }}</h2>
+
+{% for level in program.year_levels %}
+{% for set in level.sets %}
+<h3>Year {{ level.year_level }} &middot; Set {{ set.set }}</h3>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="42%">Student / fee</th>
+            <th class="right">Amount</th>
+            <th class="right">Paid</th>
+            <th class="right">Balance</th>
+            <th width="12%">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for student in set.students %}
+        <tr>
+            <td><b>{{ student.student_name }} ({{ student.student_number }})</b></td>
+            <td class="num">PHP {{ student.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ student.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ student.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ student.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+        {% for fee in student.fees %}
+        <tr class="nested">
+            <td class="indent-1">{{ fee.category }}</td>
+            <td class="num">PHP {{ fee.total_amount|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ fee.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ fee.balance|floatformat:2|intcomma }}</td>
+            <td>{{ fee.status }}</td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+        <tr class="total">
+            <td>Set {{ set.set }} total ({{ set.totals.student_count }} student{{ set.totals.student_count|pluralize }})</td>
+            <td class="num">PHP {{ set.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ set.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ set.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ set.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+    </tbody>
+</table>
+{% endfor %}
+{% endfor %}
+
+<table class="data" style="margin-top: 6pt;">
+    <tbody>
+        <tr class="total">
+            <td width="42%">Total for {{ program.program }} ({{ program.totals.student_count }} student{{ program.totals.student_count|pluralize }})</td>
+            <td class="num">PHP {{ program.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ program.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ program.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num" width="12%">{{ program.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+    </tbody>
+</table>
+{% endfor %}
+
+{% endblock %}

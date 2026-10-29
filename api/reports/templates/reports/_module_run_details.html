@@ -1,0 +1,31 @@
+{% comment %}
+ The run-details block the optional-module reports share: the same table
+ base_pdf.html prints for the money reports, with the two filters those
+ modules are cut by (system, status) in place of the fee vocabulary.
+{% endcomment %}
+<table class="meta">
+    <tr>
+        <td class="label">Period</td>
+        <td>{{ period_label }}</td>
+        <td class="label">Generated</td>
+        <td>{{ generated_at|date:"d M Y, g:i a" }}</td>
+    </tr>
+    <tr>
+        <td class="label">System</td>
+        <td>{{ report.filters.system_label|default:"All systems" }}</td>
+        <td class="label">Prepared by</td>
+        <td>{{ prepared_by|default:"—" }}</td>
+    </tr>
+    <tr>
+        <td class="label">Status</td>
+        <td>{{ status_filter|default:"All statuses" }}</td>
+        <td class="label">Program</td>
+        <td>{{ program_filter|default:"All programs" }}</td>
+    </tr>
+    <tr>
+        <td class="label">Set</td>
+        <td>{{ set_filter|default:"All sets" }}</td>
+        <td class="label">Year level</td>
+        <td>{{ year_level_filter|default:"All year levels" }}</td>
+    </tr>
+</table>

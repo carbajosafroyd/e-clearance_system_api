@@ -1,0 +1,226 @@
+{% comment %}
+Shell for the pages a link in an email lands on — account activated, link
+expired, email confirmed.
+
+These are opened straight from an inbox, often on a phone, sometimes on a
+connection that is only good enough for the click. So: no CDN, no webfont,
+no framework. One self-contained document that renders the same whether or
+not anything else loads, and honours the reader's dark mode.
+
+Blocks: title, tone (accent colour), icon (an <svg>), eyebrow, heading,
+body, actions, footnote.
+{% endcomment %}<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}{{ brand_name|default:"Account" }}{% endblock %}</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --tone: {% block tone %}#04932a{% endblock %};
+            --bg: #eef1f5;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --panel: #f8fafc;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b0e14;
+                --surface: #151922;
+                --border: #262c38;
+                --text: #e8ecf2;
+                --muted: #94a3b8;
+                --panel: #1b202b;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 460px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 12px 32px -12px rgba(15, 23, 42, .18);
+        }
+
+        .accent {
+            height: 4px;
+            background: var(--tone);
+        }
+
+        .inner {
+            padding: 36px 32px 30px;
+            text-align: center;
+        }
+
+        .brand {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 22px;
+        }
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--tone) 14%, var(--surface));
+            color: var(--tone);
+        }
+
+        .icon svg {
+            width: 30px;
+            height: 30px;
+        }
+
+        .eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+            color: var(--tone);
+        }
+
+        h1 {
+            margin: 8px 0 10px;
+            font-size: 23px;
+            line-height: 1.3;
+            letter-spacing: -.02em;
+        }
+
+        p {
+            margin: 0 0 12px;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: var(--muted);
+        }
+
+        .panel {
+            margin: 20px 0 0;
+            padding: 14px 16px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .panel dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 14px;
+            font-size: 13px;
+        }
+
+        .panel dt {
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .panel dd {
+            margin: 0;
+            text-align: right;
+            font-weight: 600;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .mono {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        .actions {
+            margin-top: 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            display: block;
+            padding: 13px 20px;
+            border-radius: 10px;
+            font-size: 14.5px;
+            font-weight: 600;
+            text-decoration: none;
+            background: var(--tone);
+            color: #fff;
+        }
+
+        .btn-quiet {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .footnote {
+            margin: 24px 0 0;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .footnote a {
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="card">
+        <div class="accent"></div>
+        <div class="inner">
+            {% if brand_name %}<div class="brand">{{ brand_name }}</div>{% endif %}
+
+            <div class="icon">{% block icon %}{% endblock %}</div>
+
+            <div class="eyebrow">{% block eyebrow %}{% endblock %}</div>
+            <h1>{% block heading %}{% endblock %}</h1>
+
+            {% block body %}{% endblock %}
+
+            {% block actions %}{% endblock %}
+
+            <div class="footnote">
+                {% block footnote %}
+                {% if support_email %}
+                Need help? Contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+                {% endif %}
+                {% endblock %}
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

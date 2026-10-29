@@ -1,0 +1,69 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ BY STAFF - every payment each staff member received in the period.
+
+ Shapes: report.staff[] {staff_username, full_name, totals {collected,
+ tx_count, cash, gcash, share_of_total}, payments[]}, report.totals
+ {collected, tx_count}. Staff arrive sorted by collected, descending;
+ payments newest first. created_at is an ISO string - sliced to its date
+ here, format it differently if you need the time.
+{% endcomment %}
+{% block report_title %}Collections by Staff{% endblock %}
+{% block content %}
+
+{% for member in report.staff %}
+<h2>{{ member.staff_username }}{% if member.full_name %} &middot; {{ member.full_name }}{% endif %}</h2>
+
+<table class="meta">
+    <tr>
+        <td>
+            Collected <b>PHP {{ member.totals.collected|floatformat:2|intcomma }}</b>
+            across {{ member.totals.tx_count }} transaction{{ member.totals.tx_count|pluralize }}
+            &middot; Cash PHP {{ member.totals.cash|floatformat:2|intcomma }}
+            &middot; GCash PHP {{ member.totals.gcash|floatformat:2|intcomma }}
+            &middot; {{ member.totals.share_of_total|floatformat:1 }}% of all collections
+        </td>
+    </tr>
+</table>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th width="13%">Date</th>
+            <th width="30%">Student</th>
+            <th width="22%">Category</th>
+            <th width="10%">Method</th>
+            <th width="12%">Reference</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for p in member.payments %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ p.created_at|slice:":10" }}</td>
+            <td>{{ p.student_name }} ({{ p.student_number }})</td>
+            <td>{{ p.category }}</td>
+            <td>{{ p.payment_method }}</td>
+            <td>{{ p.submission_reference|default:"—" }}</td>
+            <td class="num">PHP {{ p.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% empty %}
+<p class="empty">No payments were received in this period.</p>
+{% endfor %}
+
+{% if report.staff %}
+<h2>Total</h2>
+<table class="data">
+    <tbody>
+        <tr class="total">
+            <td>All staff &middot; {{ report.totals.tx_count }} transaction{{ report.totals.tx_count|pluralize }}</td>
+            <td class="num">PHP {{ report.totals.collected|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

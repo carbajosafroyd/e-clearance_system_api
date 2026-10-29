@@ -1,0 +1,371 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ COLLECTION REPORT - the aggregate overview.
+
+ Page geometry, CSS and the run-details table live in base_pdf.html; this
+ file is only the sections. The renderer's limits (no flexbox, tables only)
+ and the money/PHP note are documented there too.
+
+ Context (lifted to top-level names by collection_report_context):
+   kpi                .total_collections .previous_total_collections
+                      .total_outstanding .cash .gcash
+                      .top_category .top_category_rate
+   status_breakdown   .paid .pending .overdue .waived
+   categories         [ .category_name .collection_rate
+                        .expected .collected .outstanding
+                        .fee_count .paid_count .pending_count
+                        .overdue_count .waived_count ]
+   payment_submissions .total .approved .pending .rejected .cancelled
+                        .withdrawn each carry .count and .amount;
+                        .approval_rate is a percentage or None when nothing
+                        has been reviewed
+   staff              [ .staff_username .tx_count .collected ]
+   program_sets       [ .program .year_level .set
+                        .billed .total .balance .rate ]
+                      sorted program A-Z, year level ascending, set A-Z
+                      with blank sets ("—") last
+   losses             .waived {.count .billed .collected_before_waive
+                        .waived_amount .records}
+                      .discrepancies {.count .difference .records}
+                      .total_losses - the waived list and a per-fee payment
+                      reconciliation; records are printed by the Excel/JSON
+                      exports, this page shows the aggregates
+   payment_methods    [ .period .start .end .cash .gcash .total ]
+   trend              { .labels  .months [ .label .start .end ]
+                        .series [ .name .points ] }
+                      one series per real collection category, aligned to
+                      .labels index for index; not rendered here by default
+
+                      The monthly axis: .period / .label are "2026-02";
+                      .start and .end are the first and last day of that
+                      month if you want to print them some other way.
+
+   report             the entire snapshot, if you want something the list
+                      above does not name
+{% endcomment %}
+{% block report_title %}Collection Report{% endblock %}
+{% block content %}
+
+{# ---- headline numbers ------------------------------------------------ #}
+<h2>Summary</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Total collections</div>
+            <div class="card-value">PHP {{ kpi.total_collections|floatformat:2|intcomma }}</div>
+            <div class="card-note">
+                {% if kpi.previous_total_collections != None %}
+                    Previous period: PHP {{ kpi.previous_total_collections|floatformat:2|intcomma }}
+                {% else %}
+                    No comparable previous period
+                {% endif %}
+            </div>
+        </td>
+        <td>
+            <div class="card-label">Outstanding</div>
+            <div class="card-value">PHP {{ kpi.total_outstanding|floatformat:2|intcomma }}</div>
+            <div class="card-note">Waived fees excluded</div>
+        </td>
+        <td>
+            <div class="card-label">Top category</div>
+            <div class="card-value">{{ kpi.top_category|default:"—" }}</div>
+            <div class="card-note">{{ kpi.top_category_rate|floatformat:1 }}% collected</div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="card-label">Cash</div>
+            <div class="card-value">PHP {{ kpi.cash|floatformat:2|intcomma }}</div>
+        </td>
+        <td>
+            <div class="card-label">GCash</div>
+            <div class="card-value">PHP {{ kpi.gcash|floatformat:2|intcomma }}</div>
+        </td>
+        <td>
+            <div class="card-label">Fees by status</div>
+            <div class="card-value">
+                {{ status_breakdown.paid|default:0 }} paid
+            </div>
+            <div class="card-note">
+                {{ status_breakdown.pending|default:0 }} pending &middot;
+                {{ status_breakdown.overdue|default:0 }} overdue &middot;
+                {{ status_breakdown.waived|default:0 }} waived
+            </div>
+        </td>
+    </tr>
+</table>
+
+{# ---- categories ------------------------------------------------------ #}
+<h2>Collection by category</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="24%">Category</th>
+            <th class="right" width="18%">Collected</th>
+            <th class="right" width="10%">Rate</th>
+            <th class="right" width="12%">Paid</th>
+            <th class="right" width="12%">Pending</th>
+            <th class="right" width="12%">Overdue</th>
+            <th class="right" width="12%">Waived</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in categories %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.category_name|default:"—" }}</td>
+            <td class="num">PHP {{ row.collected|floatformat:2|intcomma }}</td>
+            <td class="num">{{ row.collection_rate|floatformat:1 }}%</td>
+            <td class="num">{{ row.paid_count }}</td>
+            <td class="num">{{ row.pending_count }}</td>
+            <td class="num">{{ row.overdue_count }}</td>
+            <td class="num">{{ row.waived_count }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="7" class="empty">No fees were issued in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ---- losses ----------------------------------------------------------- #}
+{# The two rows sum exactly to the total; kept money is a memo underneath. #}
+<h2>Losses</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="40%">&nbsp;</th>
+            <th class="right">Fees</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Waived fees (forgiven balance)</td>
+            <td class="num">{{ losses.waived.count|default:0 }}</td>
+            <td class="num">PHP {{ losses.waived.waived_amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Discounts granted (points, coupons)</td>
+            <td class="num">{{ losses.discounts.count|default:0 }}</td>
+            <td class="num">PHP {{ losses.discounts.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Payment shortfall (drawn down with no payment)</td>
+            <td class="num">{{ losses.discrepancies.count|default:0 }}</td>
+            <td class="num">PHP {{ losses.discrepancies.shortfall|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="total">
+            <td>Total losses</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.total_losses|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Memo: collected before waiving (kept, outside collections)</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.waived.collected_before_waive|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        {% if losses.discounts.amount %}
+        {# How the relief was funded - the split behind the Discounts line. #}
+        <tr>
+            <td>Memo: of which by contribution points</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.discounts.points|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Memo: of which by coupons</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.discounts.coupons|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        {% if losses.discounts.other %}
+        <tr>
+            <td>Memo: of which unexplained by either ledger</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.discounts.other|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endif %}
+        {% endif %}
+        {% if losses.waived.discounted_before_waive %}
+        {# Relief on a fee that was written off anyway - already inside the
+           Discounts line above; shown so the waived remainder reads right. #}
+        <tr>
+            <td>Memo: discounted before waiving (inside Discounts)</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.waived.discounted_before_waive|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+{% if losses.discounts.records %}
+{# ---- discounts, fee by fee ------------------------------------------- #}
+<h3>Discounts granted, by fee</h3>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="7%">Fee</th>
+            <th width="18%">Category</th>
+            <th>Student</th>
+            <th class="right" width="12%">Billed</th>
+            <th class="right" width="11%">Points</th>
+            <th class="right" width="11%">Coupons</th>
+            <th class="right" width="12%">Discount</th>
+            <th width="9%">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in losses.discounts.records %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>#{{ row.fee_id }}</td>
+            <td>{{ row.category }}</td>
+            <td>{{ row.student_name }} ({{ row.student_number }})</td>
+            <td class="num">PHP {{ row.total_amount|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ row.points|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ row.coupons|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ row.discount_total|floatformat:2|intcomma }}</td>
+            <td>{{ row.status|capfirst }}</td>
+        </tr>
+    {% endfor %}
+        <tr class="total">
+            <td colspan="3">Total ({{ losses.discounts.count }} fees)</td>
+            <td class="num"></td>
+            <td class="num">PHP {{ losses.discounts.points|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ losses.discounts.coupons|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ losses.discounts.amount|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+{% endif %}
+
+{# ---- payment submissions --------------------------------------------- #}
+<h2>Payment submissions</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="40%">Status</th>
+            <th class="right">Submissions</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Total</td>
+            <td class="num">{{ payment_submissions.total.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.total.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Approved</td>
+            <td class="num">{{ payment_submissions.approved.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.approved.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Pending review</td>
+            <td class="num">{{ payment_submissions.pending.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.pending.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Rejected</td>
+            <td class="num">{{ payment_submissions.rejected.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.rejected.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Cancelled</td>
+            <td class="num">{{ payment_submissions.cancelled.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.cancelled.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Withdrawn by student</td>
+            <td class="num">{{ payment_submissions.withdrawn.count|default:0 }}</td>
+            <td class="num">PHP {{ payment_submissions.withdrawn.amount|default:0|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Approval rate</td>
+            <td class="num" colspan="2">
+                {% if payment_submissions.approval_rate != None %}
+                    {{ payment_submissions.approval_rate|floatformat:1 }}% of reviewed submissions
+                {% else %}
+                    Nothing reviewed yet
+                {% endif %}
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+{# ---- program / year level / set -------------------------------------- #}
+<h2>Collection by program, year level and set</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Program</th>
+            <th width="8%">Year</th>
+            <th width="10%">Set</th>
+            <th class="right" width="20%">Collected</th>
+            <th class="right" width="20%">Balance</th>
+            <th class="right" width="12%">Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in program_sets %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.program }}</td>
+            <td>{{ row.year_level }}</td>
+            <td>{{ row.set }}</td>
+            <td class="num">PHP {{ row.total|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ row.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ row.rate|floatformat:1 }}%</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="empty">Nothing to show for this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ---- staff ----------------------------------------------------------- #}
+<h2>Collections by staff</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Staff</th>
+            <th class="right" width="22%">Transactions</th>
+            <th class="right" width="28%">Collected</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in staff %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.staff_username }}</td>
+            <td class="num">{{ row.tx_count }}</td>
+            <td class="num">PHP {{ row.collected|floatformat:2|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="3" class="empty">No payments were received in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ---- monthly --------------------------------------------------------- #}
+<h2>Monthly payment methods</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="22%">Month</th>
+            <th class="right">Cash</th>
+            <th class="right">GCash</th>
+            <th class="right">Total</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in payment_methods %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.period }}</td>
+            <td class="num">PHP {{ row.cash|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ row.gcash|floatformat:2|intcomma }}</td>
+            {# .total is computed by the service - the add filter would truncate floats #}
+            <td class="num">PHP {{ row.total|floatformat:2|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="4" class="empty">No payments were received in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

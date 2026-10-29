@@ -1,0 +1,95 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ POINT DISCOUNTS - points that became pesos off a fee. Context: `report`
+ from build_point_discounts_report (summary, by_system, by_category, records).
+{% endcomment %}
+{% block report_title %}Point Discounts Report{% endblock %}
+{% block run_details %}{% include "reports/_module_run_details.html" %}{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Taken off fees</div>
+            <div class="card-value">PHP {{ report.summary.amount_approved|floatformat:2|intcomma }}</div>
+            <div class="card-note">{{ report.summary.approved }} applied discount(s) &middot; {{ report.summary.points_spent|intcomma }} points &middot; {{ report.summary.students_helped }} student(s)</div>
+        </td>
+        <td>
+            <div class="card-label">Awaiting approval</div>
+            <div class="card-value">PHP {{ report.summary.amount_pending|floatformat:2|intcomma }}</div>
+            <div class="card-note">{{ report.summary.pending }} request(s) &middot; {{ report.summary.points_pending|intcomma }} points set aside</div>
+        </td>
+        <td>
+            <div class="card-label">Refused or undone</div>
+            <div class="card-value">{{ report.summary.rejected }} rejected</div>
+            <div class="card-note">{{ report.summary.cancelled }} cancelled &middot; PHP {{ report.summary.amount_cancelled|floatformat:2|intcomma }} put back</div>
+        </td>
+    </tr>
+</table>
+
+<h2>By system</h2>
+<table class="data">
+    <thead><tr><th>System</th><th class="right">Requests</th><th class="right">Applied</th><th class="right">Points</th><th class="right">Amount</th></tr></thead>
+    <tbody>
+    {% for row in report.by_system %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.requests }}</td><td class="num">{{ row.approved }}</td>
+            <td class="num">{{ row.points|intcomma }}</td><td class="num">PHP {{ row.amount|floatformat:2|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>By fee category</h2>
+<table class="data">
+    <thead><tr><th>Category</th><th class="right">Requests</th><th class="right">Applied</th><th class="right">Points</th><th class="right">Amount</th></tr></thead>
+    <tbody>
+    {% for row in report.by_category %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.category }}</td><td class="num">{{ row.requests }}</td><td class="num">{{ row.approved }}</td>
+            <td class="num">{{ row.points|intcomma }}</td><td class="num">PHP {{ row.amount|floatformat:2|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5" class="empty">No discount was requested in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Requests</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="5%">#</th><th width="20%">Student</th><th width="15%">Fee</th>
+            <th class="right" width="8%">Points</th><th class="right" width="11%">Amount</th>
+            <th width="11%">Status</th><th width="9%">Requested</th><th>Decided</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.records %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.id }}</td>
+            <td>{{ row.student_name }}<br><span class="muted">{{ row.student_number }} &middot; {{ row.program }} {{ row.year_level }}{{ row.set }}</span></td>
+            <td>#{{ row.fee_id }} {{ row.fee_category }}<br><span class="muted">{{ row.fee_term }} &middot; billed PHP {{ row.fee_billed|floatformat:2|intcomma }}</span></td>
+            <td class="num">{{ row.points_spent|intcomma }}</td>
+            <td class="num">PHP {{ row.amount|floatformat:2|intcomma }}</td>
+            <td>{{ row.status_label }}</td>
+            <td>{{ row.requested_at|slice:":10" }}</td>
+            <td>
+                {% if row.cancelled_by %}Cancelled by {{ row.cancelled_by }} {{ row.cancelled_at|slice:":10" }}{% if row.cancellation_reason %}: {{ row.cancellation_reason|truncatechars:90 }}{% endif %}
+                {% elif row.reviewed_by %}{{ row.reviewed_by }} {{ row.reviewed_at|slice:":10" }}{% if row.remarks %}: {{ row.remarks|truncatechars:90 }}{% endif %}
+                {% else %}—{% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="8" class="empty">No discount was requested in this period.</td></tr>
+    {% endfor %}
+        <tr class="total">
+            <td colspan="3">Applied: {{ report.summary.approved }} of {{ report.summary.requests }} request(s)</td>
+            <td class="num">{{ report.summary.points_spent|intcomma }}</td>
+            <td class="num">PHP {{ report.summary.amount_approved|floatformat:2|intcomma }}</td>
+            <td colspan="3"></td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "email_templates/base.html" %}
+
+{% comment %}
+Step 1 of the email change: proves the person asking still holds the
+*current* address. Context: code, expiry_minutes, current_email,
+requested_at, account_username + email_brand().
+{% endcomment %}
+
+{% block title %}Confirm your email change{% endblock %}
+{% block preheader %}{{ code }} is your code to start changing the email on your account.{% endblock %}
+{% block eyebrow %}Email change &middot; Step 1 of 2{% endblock %}
+{% block heading %}Confirm it's really you{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    Someone asked to change the email address on your {{ brand_name }} account.
+    Enter this code in the app to continue.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:24px 0 0; background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+    <tr>
+        <td style="padding:24px; text-align:center;">
+            <div
+                style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                Verification code
+            </div>
+            <div
+                style="margin:12px 0 0; font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; font-size:34px; font-weight:700; letter-spacing:0.18em; color:#0f172a;">
+                {{ code }}
+            </div>
+            <div style="margin:12px 0 0; font-size:12px; color:#64748b;">
+                Expires in {{ expiry_minutes }} minutes
+            </div>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:16px 0 0; background-color:#ffffff; border:1px solid #e2e8f0; border-radius:10px;">
+    <tr>
+        <td style="padding:14px 18px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                {% include "email_templates/partials/_row.html" with label="Account" value=account_username strong=True %}
+                {% include "email_templates/partials/_row.html" with label="Current email" value=current_email %}
+                {% include "email_templates/partials/_row.html" with label="Requested" value=requested_at %}
+            </table>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:18px 0 0; font-size:13px; line-height:1.65; color:#64748b;">
+    Nothing changes yet. After this code, you'll pick the new address and we'll
+    send a confirmation link there — the change only takes effect once that link is opened.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;">
+    <tr>
+        <td
+            style="padding:12px 14px; background-color:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; line-height:1.6; color:#7f1d1d;">
+            <strong>Didn't request this?</strong> Don't enter the code, and change your password —
+            someone may have access to your account.
+        </td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}
+If you didn't ask to change your email, ignore this message. Your address stays as it is.
+{% endblock %}

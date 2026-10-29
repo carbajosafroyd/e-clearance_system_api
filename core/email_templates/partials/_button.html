@@ -1,0 +1,18 @@
+{% comment %}
+Call-to-action button.
+
+    {% include "email_templates/partials/_button.html" with url=link label="Activate your account" %}
+
+Bulletproof-ish: a padded anchor, centred in its own table row, with the
+brand colour inlined so no client has to resolve a variable at render time.
+{% endcomment %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;">
+    <tr>
+        <td align="center">
+            <a href="{{ url }}" target="_blank" rel="noopener"
+                style="display:inline-block; padding:14px 32px; background-color:{{ brand_color|default:'#04932a' }}; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; line-height:1; border-radius:8px;">
+                {{ label }}
+            </a>
+        </td>
+    </tr>
+</table>

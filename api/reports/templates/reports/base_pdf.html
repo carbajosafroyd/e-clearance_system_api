@@ -1,0 +1,210 @@
+{% comment %}
+================================================================================
+ SHARED PDF SCAFFOLD
+================================================================================
+
+ Every report template extends this one. It owns the page geometry, the
+ repeating header/footer, the run-details table and all the CSS - a child
+ template only fills in {% block report_title %} and {% block content %}
+ (and {% block extra_css %} if it needs styles of its own).
+
+ THEME
+ -----
+ Emerald, kept quiet: deep emerald for headings and table headers, faint
+ emerald tints for zebra rows and totals, near-neutral dark green for body
+ text. The whole palette sits in the CSS variables-by-convention below -
+ change these hex values and every report follows:
+
+    #065F46  headings, rules, emphasis        (emerald 800)
+    #047857  table header background          (emerald 700)
+    #D1FAE5  totals fill, strong borders      (emerald 100)
+    #ECFDF5  zebra fill, section rows, cards  (emerald 50)
+    #1F3A31  body text
+    #5F7A6E  muted text
+
+ CONTEXT AVAILABLE IN EVERY CHILD
+ --------------------------------
+   report             the whole snapshot the JSON endpoint returns
+   institute_name     may be empty (superuser with no institute)
+   period_label       "First Semester, A.Y. 2025-2026" or a date range
+   program_filter     program the report was narrowed to, or empty
+   set_filter         student set it was narrowed to, or empty
+   year_level_filter  year level it was narrowed to, or empty
+   generated_at       datetime, already in local time
+   prepared_by        username of whoever asked for the report
+
+ THE RENDERER HAS OPINIONS
+ -------------------------
+ xhtml2pdf understands roughly CSS 2.1. That means:
+   * NO flexbox, NO grid, NO CSS variables. Lay things out with tables.
+   * Widths in cm/pt/% behave; viewport units do not exist.
+   * `<pdf:pagenumber>` and `<pdf:pagecount>` are the page counters.
+   * The header/footer frames repeat on every page automatically. The divs
+     they point at are pulled out of the normal flow, which is why they sit
+     at the bottom of this file and still appear at the top of the page.
+
+ MONEY
+ -----
+ Written as "PHP 1,234.00" rather than with a peso sign, because the built-in
+ fonts have no U+20B1 glyph and it would print as a blank box. To use it,
+ register a font that has one and switch the body rule:
+
+   @font-face { font-family: "Report"; src: url("/abs/path/DejaVuSans.ttf"); }
+   body { font-family: "Report"; }
+
+ Then replace every "PHP" in the child templates with &#8369;.
+================================================================================
+{% endcomment %}<html>
+<head>
+<meta charset="utf-8" />
+<style type="text/css">
+    /* ---- page ------------------------------------------------------- */
+    @page {
+        size: a4 portrait;
+        margin: 3.1cm 1.4cm 1.9cm 1.4cm;
+
+        @frame header_frame {
+            -pdf-frame-content: header_content;
+            left: 1.4cm; width: 18.2cm; top: 1.1cm; height: 1.8cm;
+        }
+        @frame footer_frame {
+            -pdf-frame-content: footer_content;
+            left: 1.4cm; width: 18.2cm; top: 28.1cm; height: 1cm;
+        }
+    }
+
+    /* ---- type ------------------------------------------------------- */
+    body {
+        font-family: Helvetica, sans-serif;
+        font-size: 8.5pt;
+        color: #1F3A31;
+    }
+    h1 { font-size: 15pt; margin: 0; color: #065F46; }
+    h2 {
+        font-size: 9.5pt;
+        margin: 16pt 0 5pt 0;
+        color: #065F46;
+        border-bottom: 1pt solid #A7F3D0;
+        padding-bottom: 3pt;
+        text-transform: uppercase;
+        letter-spacing: 0.6pt;
+    }
+    h3 { font-size: 9pt; margin: 10pt 0 4pt 0; color: #047857; }
+    .muted { color: #5F7A6E; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+
+    /* ---- header / footer -------------------------------------------- */
+    #header_content { border-bottom: 1.5pt solid #065F46; padding-bottom: 5pt; }
+    #header_content .institute { font-size: 10pt; color: #3E5F52; }
+    #footer_content {
+        border-top: 0.5pt solid #D1FAE5;
+        padding-top: 4pt;
+        font-size: 7pt;
+        color: #5F7A6E;
+    }
+
+    /* ---- the run-of-the-report meta line ----------------------------- */
+    table.meta { width: 100%; margin-bottom: 4pt; }
+    table.meta td { padding: 1.5pt 0; font-size: 8pt; }
+    table.meta .label { color: #5F7A6E; width: 3.2cm; }
+
+    /* ---- KPI cards --------------------------------------------------- */
+    table.cards { width: 100%; }
+    table.cards td {
+        width: 33%;
+        border: 0.5pt solid #A7F3D0;
+        background-color: #ECFDF5;
+        padding: 7pt 8pt;
+    }
+    .card-label {
+        font-size: 7pt;
+        color: #5F7A6E;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+    }
+    .card-value { font-size: 12pt; color: #064E3B; padding-top: 2pt; }
+    .card-note { font-size: 7pt; color: #5F7A6E; padding-top: 1pt; }
+
+    /* ---- data tables -------------------------------------------------- */
+    table.data { width: 100%; border-collapse: collapse; }
+    table.data th {
+        background-color: #047857;
+        color: #ffffff;
+        font-size: 7.5pt;
+        text-align: left;
+        padding: 4pt 6pt;
+    }
+    table.data td {
+        border-bottom: 0.5pt solid #D1FAE5;
+        padding: 3.5pt 6pt;
+    }
+    table.data tr.zebra td { background-color: #ECFDF5; }
+    table.data td.num { text-align: right; }
+    .empty { padding: 8pt; color: #5F7A6E; font-style: italic; }
+
+    /* ---- nesting, sections and totals --------------------------------- */
+    .indent-1 { padding-left: 16pt; }
+    .indent-2 { padding-left: 32pt; }
+    table.data tr.nested td { color: #4E6C5E; font-size: 7.8pt; }
+    table.data tr.section td {
+        background-color: #ECFDF5;
+        color: #065F46;
+        font-weight: bold;
+    }
+    table.data tr.total td {
+        background-color: #D1FAE5;
+        font-weight: bold;
+    }
+    {% block extra_css %}{% endblock %}
+</style>
+</head>
+<body>
+
+{# ---- run details ------------------------------------------------------
+   In a block so a report whose filters are not program/set/year (e.g. the
+   audit-log report) can print its own rows instead. #}
+{% block run_details %}
+<table class="meta">
+    <tr>
+        <td class="label">Period</td>
+        <td>{{ period_label }}</td>
+        <td class="label">Generated</td>
+        <td>{{ generated_at|date:"d M Y, g:i a" }}</td>
+    </tr>
+    <tr>
+        <td class="label">Program</td>
+        <td>{{ program_filter|default:"All programs" }}</td>
+        <td class="label">Prepared by</td>
+        <td>{{ prepared_by|default:"—" }}</td>
+    </tr>
+    <tr>
+        <td class="label">Set</td>
+        <td>{{ set_filter|default:"All sets" }}</td>
+        <td class="label">Year level</td>
+        <td>{{ year_level_filter|default:"All year levels" }}</td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block content %}{% endblock %}
+
+{# ==== repeating page furniture ======================================== #}
+<div id="header_content">
+    <h1>{% block report_title %}Report{% endblock %}</h1>
+    <div class="institute">
+        {{ institute_name|default:"All institutes" }}{% if institute_acronym %} ({{ institute_acronym }}){% endif %}{% if school_name %} &middot; {{ school_name }}{% endif %}
+    </div>
+</div>
+
+<div id="footer_content">
+    <table width="100%">
+        <tr>
+            <td>Generated {{ generated_at|date:"d M Y, g:i a" }} &middot; {{ period_label }}</td>
+            <td class="right">Page <pdf:pagenumber /> of <pdf:pagecount /></td>
+        </tr>
+    </table>
+</div>
+
+</body>
+</html>

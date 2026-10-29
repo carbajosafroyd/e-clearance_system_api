@@ -1,0 +1,19 @@
+{{ brand_name }}
+
+Someone asked to change the email address on your {{ brand_name }} account.
+
+Your verification code: {{ code }}
+This code expires in {{ expiry_minutes }} minutes.
+
+Account: {{ account_username }}
+Current email: {{ current_email }}
+Requested: {{ requested_at }}
+
+Nothing changes yet. After this code you'll pick the new address, and we'll send
+a confirmation link there - the change only takes effect once that link is opened.
+
+Didn't request this? Don't enter the code, and change your password.
+{% if support_email %}
+Need help? Contact {{ support_email }}.
+{% endif %}
+(c) {{ year }} {{ brand_name }}

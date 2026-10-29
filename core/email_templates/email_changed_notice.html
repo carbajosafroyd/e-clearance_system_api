@@ -1,0 +1,51 @@
+{% extends "email_templates/base.html" %}
+
+{% comment %}
+Sent to the OLD address once the change is applied — the last message that
+address ever gets. It is the only warning a hijacked account gives its
+owner, so it says plainly what to do. Context: current_email (the old one),
+new_email, account_username, changed_at + email_brand().
+{% endcomment %}
+
+{% block title %}The email on your account was changed{% endblock %}
+{% block preheader %}Your {{ brand_name }} account now uses {{ new_email }}.{% endblock %}
+{% block eyebrow %}Security notice{% endblock %}
+{% block heading %}The email on your account was changed{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    The email address for your {{ brand_name }} account was changed and confirmed.
+    This is the last message this address will receive.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:24px 0 0; background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                {% include "email_templates/partials/_row.html" with label="Account" value=account_username strong=True %}
+                {% include "email_templates/partials/_row.html" with label="Previous email" value=current_email %}
+                {% include "email_templates/partials/_row.html" with label="New email" value=new_email strong=True %}
+                {% include "email_templates/partials/_row.html" with label="Changed" value=changed_at %}
+            </table>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;">
+    <tr>
+        <td
+            style="padding:12px 14px; background-color:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; line-height:1.65; color:#7f1d1d;">
+            <strong>Wasn't you?</strong> Act now — whoever made this change now receives
+            your password resets. Contact
+            {% if support_email %}<a href="mailto:{{ support_email }}"
+                style="color:#7f1d1d;">{{ support_email }}</a>{% else %}your administrator{% endif %}
+            immediately so the account can be locked.
+        </td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}
+You're receiving this at your previous address so a change you didn't make can't go unnoticed.
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ REPORTS & IDEAS REPORT - the contributions queue and what it paid out.
+ Context: `report` from build_contributions_report (summary, by_system,
+ by_kind, by_impact, records).
+{% endcomment %}
+{% block report_title %}Reports &amp; Ideas Report{% endblock %}
+{% block run_details %}{% include "reports/_module_run_details.html" %}{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Reports filed</div>
+            <div class="card-value">{{ report.summary.total }}</div>
+            <div class="card-note">by {{ report.summary.students }} student(s)</div>
+        </td>
+        <td>
+            <div class="card-label">Approved</div>
+            <div class="card-value">{{ report.summary.approved }}</div>
+            <div class="card-note">
+                {% if report.summary.approval_rate != None %}{{ report.summary.approval_rate|floatformat:1 }}% of decided &middot; {% endif %}
+                {{ report.summary.rejected }} rejected &middot; {{ report.summary.duplicate }} duplicate
+            </div>
+        </td>
+        <td>
+            <div class="card-label">Points awarded</div>
+            <div class="card-value">{{ report.summary.points_awarded|intcomma }}</div>
+            <div class="card-note">{{ report.summary.pending }} pending &middot; {{ report.summary.under_review }} under review</div>
+        </td>
+    </tr>
+</table>
+
+<h2>By system</h2>
+<table class="data">
+    <thead><tr><th>System</th><th class="right">Total</th><th class="right">Approved</th><th class="right">Pending</th><th class="right">Rejected</th><th class="right">Points</th></tr></thead>
+    <tbody>
+    {% for row in report.by_system %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.total }}</td><td class="num">{{ row.approved }}</td>
+            <td class="num">{{ row.pending }}</td><td class="num">{{ row.rejected }}</td><td class="num">{{ row.points|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>By kind</h2>
+<table class="data">
+    <thead><tr><th>Kind</th><th class="right">Total</th><th class="right">Approved</th><th class="right">Pending</th><th class="right">Rejected</th><th class="right">Points</th></tr></thead>
+    <tbody>
+    {% for row in report.by_kind %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.total }}</td><td class="num">{{ row.approved }}</td>
+            <td class="num">{{ row.pending }}</td><td class="num">{{ row.rejected }}</td><td class="num">{{ row.points|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="empty">Nothing was filed in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Reports and ideas</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="6%">#</th><th width="20%">Student</th><th width="13%">System</th>
+            <th width="12%">Kind</th><th>Title</th><th width="8%">Impact</th>
+            <th width="11%">Status</th><th class="right" width="7%">Points</th><th width="9%">Filed</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.records %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.id }}</td>
+            <td>{{ row.student_name }}<br><span class="muted">{{ row.student_number }} &middot; {{ row.program }} {{ row.year_level }}{{ row.set }}</span></td>
+            <td>{{ row.system_label }}</td>
+            <td>{{ row.kind_label }}</td>
+            <td>{{ row.title }}{% if row.reviewed_by %}<br><span class="muted">Reviewed by {{ row.reviewed_by }}{% if row.review_remarks %}: {{ row.review_remarks|truncatechars:120 }}{% endif %}</span>{% endif %}</td>
+            <td>{{ row.impact_label }}</td>
+            <td>{{ row.status_label }}</td>
+            <td class="num">{{ row.points_awarded }}</td>
+            <td>{{ row.filed_at|slice:":10" }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="9" class="empty">Nothing was filed in this period.</td></tr>
+    {% endfor %}
+        <tr class="total"><td colspan="7">Total: {{ report.summary.total }} report(s)</td><td class="num">{{ report.summary.points_awarded|intcomma }}</td><td></td></tr>
+    </tbody>
+</table>
+{% endblock %}

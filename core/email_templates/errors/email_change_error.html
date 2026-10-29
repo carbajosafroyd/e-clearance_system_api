@@ -1,0 +1,39 @@
+{% extends "email_templates/pages/base_page.html" %}
+
+{% comment %}Context: message, reason (optional short code), brand_name, support_email.{% endcomment %}
+
+{% block title %}Email change failed{% endblock %}
+{% block tone %}#dc2626{% endblock %}
+
+{% block icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+    stroke-linejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    <path d="m15 11 4 4m0-4-4 4" />
+</svg>
+{% endblock %}
+
+{% block eyebrow %}Email change failed{% endblock %}
+{% block heading %}We couldn't confirm this address{% endblock %}
+
+{% block body %}
+<p>
+    {% if message %}{{ message }}{% else %}
+    This confirmation link is invalid, has expired, or has already been used.
+    {% endif %}
+</p>
+<p>
+    Nothing was changed — the account still uses its previous email address.
+    Start the change again from <strong>My Account &rarr; Change email</strong>;
+    a fresh link will be sent to the address you enter.
+</p>
+{% endblock %}
+
+{% block footnote %}
+{% if support_email %}
+Still stuck? Contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+{% else %}
+Still stuck? Contact your administrator.
+{% endif %}
+{% endblock %}

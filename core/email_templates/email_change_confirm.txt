@@ -1,0 +1,30 @@
+{{ brand_name }}
+
+{% if initiated_by %}{{ initiated_by }}, an administrator at {{ brand_name }}, entered this address as
+the new email for the account below - usually because the old mailbox can no
+longer be reached.{% else %}This address was entered as the new email for a {{ brand_name }} account.{% endif %}
+Confirming replaces the old address - account mail will come here instead.
+
+Account: {{ account_username }}
+{% if account_name %}Name on file: {{ account_name }}
+{% endif %}{% if institute_name %}Institute: {{ institute_name }}
+{% endif %}Current email: {{ current_email }}
+New email: {{ new_email }}
+Requested: {{ requested_at }}
+{% if initiated_by %}Requested by: {{ initiated_by }}
+{% endif %}
+Confirm this email address:
+{{ link }}
+
+This link expires in {{ expiry_minutes }} minutes and works once.
+
+What happens next: the old address stops receiving account mail and is told
+about the change. Your username and password do not change - keep signing in
+with {{ account_username }}.
+
+Don't recognise this account{% if initiated_by %}, or didn't ask for this{% endif %}? Don't open
+the link. Without it, nothing changes.
+{% if support_email %}
+Need help? Contact {{ support_email }}.
+{% endif %}
+(c) {{ year }} {{ brand_name }}

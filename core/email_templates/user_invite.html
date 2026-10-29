@@ -1,0 +1,79 @@
+{% extends "email_templates/base.html" %}
+
+{% comment %}
+Context: link, group_name, username, temporary_password, expiry_days,
+invited_by (optional display name) + everything from email_brand().
+{% endcomment %}
+
+{% block title %}You're invited to {{ brand_name }}{% endblock %}
+{% block preheader %}Activate your account{% if temporary_password %} — your sign-in details are inside{% endif %}.{% endblock %}
+{% block eyebrow %}Invitation{% endblock %}
+{% block heading %}You've been invited to {{ brand_name }}{% endblock %}
+
+{% block content %}
+<p style="margin:16px 0 0; font-size:15px; line-height:1.65; color:#475569;">
+    {% if invited_by %}{{ invited_by }} has invited you{% else %}You've been invited{% endif %}
+    to join the {{ brand_name }} platform{% if institute_name %} under {{ institute_name }}{% endif %}.
+    Activate your account below to get started.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:24px 0 0; background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                {% include "email_templates/partials/_row.html" with label="Assigned role" value=group_name strong=True %}
+                {% if username %}
+                {% include "email_templates/partials/_row.html" with label="Username" value=username strong=True %}
+                {% endif %}
+                {% include "email_templates/partials/_row.html" with label="Email" value=email %}
+            </table>
+        </td>
+    </tr>
+</table>
+
+{% if temporary_password %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:16px 0 0; background-color:#ffffff; border:1px dashed #cbd5e1; border-radius:10px;">
+    <tr>
+        <td style="padding:18px; text-align:center;">
+            <div
+                style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#64748b;">
+                Temporary password
+            </div>
+            <div
+                style="margin:10px 0 0; font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; font-size:24px; font-weight:700; letter-spacing:0.08em; color:#0f172a;">
+                {{ temporary_password }}
+            </div>
+            <div style="margin:10px 0 0; font-size:12px; line-height:1.6; color:#64748b;">
+                Use it for your first sign-in{% if username %} together with the username above{% endif %}.
+                Change it from <strong style="color:#334155;">My Account</strong> right after.
+            </div>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+{% include "email_templates/partials/_button.html" with url=link label="Activate your account" %}
+{% include "email_templates/partials/_fallback_link.html" with url=link %}
+
+<p style="margin:20px 0 0; font-size:13px; line-height:1.6; color:#64748b; text-align:center;">
+    This invitation expires in <strong style="color:#0f172a;">{{ expiry_days|default:3 }} days</strong>.
+    Your account isn't created until you activate it.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;">
+    <tr>
+        <td
+            style="padding:12px 14px; background-color:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:13px; line-height:1.6; color:#78350f;">
+            <strong>Keep this email private.</strong>
+            {% if temporary_password %}Anyone with the password above could sign in as you until you change it.
+            {% else %}Anyone with the link above could activate this account.{% endif %}
+        </td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}
+If you weren't expecting this invitation you can ignore this email — no account is created until the link is used.
+{% endblock %}

@@ -1,0 +1,405 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ DETAILED FEES - every fee in the period, grouped by category and, inside
+ each category, by status (overdue first, then pending, paid, waived).
+
+ Under each fee row: its submissions (indented once), the payments born from
+ each submission (indented twice), and over-the-counter payments (indented
+ once, labelled "Direct payment"). A payment appears exactly once - under
+ its submission if it has one, under the fee if not. A fee with remarks
+ (e.g. a waiver reason) gets a note row.
+
+ The sections run in the same order as the Excel tabs: summary, fees (the
+ categories), payments (cancelled ones listed and flagged, with an
+ Active / Cancelled / Grand totals split), payment submissions, payment
+ submission items, losses (the waived fees) - the flat ones every column,
+ with a totals row under the records.
+
+ Shapes: report.summary {status_breakdown, payments, payment_submissions},
+ report.categories[] {category_name, totals, statuses[] {status, count,
+ totals, fees[]}}, report.totals, the flat sections report.payments,
+ report.payment_submissions and report.payment_submission_items, each
+ {records[], totals}, and report.losses {count, billed,
+ collected_before_waive, waived_amount, records[]}. Fee rows also carry
+ .issued_at, .issued_by, .academic_year and .semester if you want more
+ columns.
+{% endcomment %}
+{% block report_title %}Detailed Fees{% endblock %}
+{% block extra_css %}
+    a { color: #047857; }
+{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th>Fees by status</th>
+            <th class="right">Paid</th>
+            <th class="right">Pending</th>
+            <th class="right">Overdue</th>
+            <th class="right">Waived</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Count</td>
+            <td class="num">{{ report.summary.status_breakdown.paid }}</td>
+            <td class="num">{{ report.summary.status_breakdown.pending }}</td>
+            <td class="num">{{ report.summary.status_breakdown.overdue }}</td>
+            <td class="num">{{ report.summary.status_breakdown.waived }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<table class="data" style="margin-top: 6pt;">
+    <thead>
+        <tr>
+            <th>Payments</th>
+            <th class="right">Transactions</th>
+            <th class="right">Cash</th>
+            <th class="right">GCash</th>
+            <th class="right">Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Received on these fees</td>
+            <td class="num">{{ report.summary.payments.tx_count }}</td>
+            <td class="num">PHP {{ report.summary.payments.cash|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.summary.payments.gcash|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.summary.payments.total_collections|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<table class="data" style="margin-top: 6pt;">
+    <thead>
+        <tr>
+            <th>Submissions</th>
+            <th class="right">Count</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% with subs=report.summary.payment_submissions %}
+        <tr>
+            <td>Total</td>
+            <td class="num">{{ subs.total.count }}</td>
+            <td class="num">PHP {{ subs.total.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Approved</td>
+            <td class="num">{{ subs.approved.count }}</td>
+            <td class="num">PHP {{ subs.approved.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Pending review</td>
+            <td class="num">{{ subs.pending.count }}</td>
+            <td class="num">PHP {{ subs.pending.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="zebra">
+            <td>Rejected</td>
+            <td class="num">{{ subs.rejected.count }}</td>
+            <td class="num">PHP {{ subs.rejected.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+            <td>Approval rate</td>
+            <td class="num" colspan="2">
+                {% if subs.approval_rate != None %}
+                    {{ subs.approval_rate|floatformat:1 }}% of reviewed submissions
+                {% else %}
+                    Nothing reviewed yet
+                {% endif %}
+            </td>
+        </tr>
+        {% endwith %}
+    </tbody>
+</table>
+
+{% for category in report.categories %}
+<h2>{{ category.category_name }}</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="30%">Student</th>
+            <th width="6%">Lvl</th>
+            <th width="8%">Set</th>
+            <th class="right">Amount</th>
+            <th class="right">Paid</th>
+            <th class="right">Balance</th>
+            <th width="10%">Due</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for group in category.statuses %}
+        <tr class="section">
+            <td colspan="7">{{ group.status|capfirst }} &middot; {{ group.count }} fee{{ group.count|pluralize }}</td>
+        </tr>
+        {% for fee in group.fees %}
+        <tr>
+            <td>{{ fee.student_name }} ({{ fee.student_number }})</td>
+            <td>{{ fee.year_level }}</td>
+            <td>{{ fee.set }}</td>
+            <td class="num">PHP {{ fee.total_amount|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ fee.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ fee.balance|floatformat:2|intcomma }}</td>
+            <td>{{ fee.due_date|slice:":10"|default:"—" }}</td>
+        </tr>
+        {% if fee.remarks %}
+        <tr class="nested">
+            <td colspan="7" class="indent-1">Remarks: {{ fee.remarks }}</td>
+        </tr>
+        {% endif %}
+        {% for sub in fee.submissions %}
+        <tr class="nested">
+            <td colspan="3" class="indent-1">
+                Submission {{ sub.reference_number }} &middot; {{ sub.status }}{% if sub.reviewed_by %}, reviewed by {{ sub.reviewed_by }}{% endif %}
+            </td>
+            <td colspan="3" class="num">
+                PHP {{ sub.amount_for_this_fee|floatformat:2|intcomma }} of PHP {{ sub.total_amount_paid|floatformat:2|intcomma }}
+            </td>
+            <td></td>
+        </tr>
+        {% for p in sub.payments %}
+        <tr class="nested">
+            <td colspan="3" class="indent-2">
+                Payment #{{ p.id }} &middot; {{ p.payment_method }}{% if p.received_by %} by {{ p.received_by }}{% endif %}
+            </td>
+            <td colspan="3" class="num">PHP {{ p.amount_paid|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        {% for p in fee.payments %}
+        <tr class="nested">
+            <td colspan="3" class="indent-1">
+                Direct payment #{{ p.id }} &middot; {{ p.payment_method }}{% if p.received_by %} by {{ p.received_by }}{% endif %}
+            </td>
+            <td colspan="3" class="num">PHP {{ p.amount_paid|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+    {% endfor %}
+        <tr class="total">
+            <td colspan="3">Total for {{ category.category_name }}</td>
+            <td class="num">PHP {{ category.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ category.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ category.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ category.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+    </tbody>
+</table>
+{% empty %}
+<p class="empty">No fees were issued in this period.</p>
+{% endfor %}
+
+{% if report.categories %}
+<h2>Grand total</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th></th>
+            <th class="right">Billed</th>
+            <th class="right">Paid</th>
+            <th class="right">Balance</th>
+            <th class="right">Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="total">
+            <td>All categories (waived excluded)</td>
+            <td class="num">PHP {{ report.totals.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.totals.paid|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ report.totals.balance|floatformat:2|intcomma }}</td>
+            <td class="num">{{ report.totals.collection_rate|floatformat:1 }}%</td>
+        </tr>
+    </tbody>
+</table>
+{% endif %}
+
+<h2>Payments</h2>
+{% with pay=report.payments %}
+{% if pay.records %}
+<table class="data">
+    <thead>
+        <tr>
+            <th width="6%">ID</th>
+            <th width="9%">Date</th>
+            <th width="20%">Student</th>
+            <th width="13%">Category</th>
+            <th width="11%">Submission Ref</th>
+            <th width="7%">Method</th>
+            <th width="8%">Status</th>
+            <th width="10%">Received by</th>
+            <th class="right">Prev. balance</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in pay.records %}
+        <tr{% if forloop.counter|divisibleby:2 %} class="zebra"{% endif %}>
+            <td>#{{ p.id }}</td>
+            <td>{{ p.created_at|slice:":10" }}</td>
+            <td>{{ p.student_name }} ({{ p.student_number }})</td>
+            <td>{{ p.category }}</td>
+            <td>{{ p.submission_reference|default:"direct" }}</td>
+            <td>{{ p.payment_method }}</td>
+            <td>{{ p.status }}</td>
+            <td>{{ p.received_by|default:"—" }}</td>
+            <td class="num">PHP {{ p.previous_balance|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ p.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+            <td colspan="8">Active &middot; {{ pay.totals.active.count }} payment{{ pay.totals.active.count|pluralize }} &middot; Cash PHP {{ pay.totals.active.cash|floatformat:2|intcomma }} &middot; GCash PHP {{ pay.totals.active.gcash|floatformat:2|intcomma }}</td>
+            <td></td>
+            <td class="num">PHP {{ pay.totals.active.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="total">
+            <td colspan="8">Cancelled &middot; {{ pay.totals.cancelled.count }} payment{{ pay.totals.cancelled.count|pluralize }}</td>
+            <td></td>
+            <td class="num">PHP {{ pay.totals.cancelled.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="total">
+            <td colspan="8">Grand total &middot; {{ pay.totals.count }} payment{{ pay.totals.count|pluralize }}</td>
+            <td></td>
+            <td class="num">PHP {{ pay.totals.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No payments were received on these fees.</p>
+{% endif %}
+{% endwith %}
+
+<h2>Payment Submissions</h2>
+{% with subs=report.payment_submissions %}
+{% if subs.records %}
+<table class="data">
+    <thead>
+        <tr>
+            <th width="6%">ID</th>
+            <th width="10%">Submitted</th>
+            <th width="24%">Student</th>
+            <th width="13%">Reference No</th>
+            <th width="9%">Status</th>
+            <th width="6%" class="right">Fees</th>
+            <th width="14%">Reviewed by</th>
+            <th class="right">Total amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in subs.records %}
+        <tr>
+            <td>#{{ s.id }}</td>
+            <td>{{ s.submitted_at|slice:":10" }}</td>
+            <td>{{ s.student_name }} ({{ s.student_number }})</td>
+            <td>{{ s.reference_number }}</td>
+            <td>{{ s.status }}</td>
+            <td class="num">{{ s.fee_count }}</td>
+            <td>{{ s.reviewed_by|default:"—" }}{% if s.reviewed_at %} ({{ s.reviewed_at|slice:":10" }}){% endif %}</td>
+            <td class="num">PHP {{ s.total_amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+        {% if s.remarks or s.screenshot_urls %}
+        <tr class="nested">
+            <td></td>
+            <td colspan="7" class="indent-1">
+                {% if s.remarks %}Remarks: {{ s.remarks }}{% if s.screenshot_urls %} &middot; {% endif %}{% endif %}
+                {% for url in s.screenshot_urls %}<a href="{{ url }}">Screenshot {{ forloop.counter }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+        <tr class="total">
+            <td colspan="7">Total &middot; {{ subs.totals.count }} submission{{ subs.totals.count|pluralize }}</td>
+            <td class="num">PHP {{ subs.totals.total_amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No payment submissions touch these fees.</p>
+{% endif %}
+{% endwith %}
+
+<h2>Payment Submission Items</h2>
+{% with items=report.payment_submission_items %}
+{% if items.records %}
+<table class="data">
+    <thead>
+        <tr>
+            <th width="7%">Item</th>
+            <th width="16%">Submission</th>
+            <th width="8%">Fee ID</th>
+            <th width="24%">Student</th>
+            <th width="17%">Category</th>
+            <th class="right">Prev. balance</th>
+            <th class="right">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items.records %}
+        <tr{% if forloop.counter|divisibleby:2 %} class="zebra"{% endif %}>
+            <td>#{{ item.id }}</td>
+            <td>{{ item.submission_reference }} (#{{ item.payment_submission_id }})</td>
+            <td>#{{ item.fee_id }}</td>
+            <td>{{ item.student_name }} ({{ item.student_number }})</td>
+            <td>{{ item.category }}</td>
+            <td class="num">PHP {{ item.previous_balance|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ item.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+            <td colspan="6">Total &middot; {{ items.totals.count }} item{{ items.totals.count|pluralize }}</td>
+            <td class="num">PHP {{ items.totals.amount_paid|floatformat:2|intcomma }}</td>
+        </tr>
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No submission items touch these fees.</p>
+{% endif %}
+{% endwith %}
+
+<h2>Losses (waived fees)</h2>
+{% with losses=report.losses %}
+{% if losses.records %}
+<table class="data">
+    <thead>
+        <tr>
+            <th width="7%">Fee</th>
+            <th width="17%">Category</th>
+            <th width="24%">Student</th>
+            <th class="right" width="13%">Amount</th>
+            <th class="right" width="13%">Paid before waive</th>
+            <th class="right" width="13%">Waived (loss)</th>
+            <th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in losses.records %}
+        <tr{% if forloop.counter|divisibleby:2 %} class="zebra"{% endif %}>
+            <td>#{{ r.fee_id }}</td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.student_name }} ({{ r.student_number }})</td>
+            <td class="num">PHP {{ r.total_amount|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ r.paid_before_waive|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ r.waived_amount|floatformat:2|intcomma }}</td>
+            <td>{{ r.remarks|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+            <td colspan="3">Total &middot; {{ losses.count }} waived fee{{ losses.count|pluralize }}</td>
+            <td class="num">PHP {{ losses.billed|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ losses.collected_before_waive|floatformat:2|intcomma }}</td>
+            <td class="num">PHP {{ losses.waived_amount|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No fees were waived in this period.</p>
+{% endif %}
+{% endwith %}
+
+{% endblock %}

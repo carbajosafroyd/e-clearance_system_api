@@ -1,0 +1,67 @@
+{% extends "email_templates/pages/base_page.html" %}
+
+{% comment %}
+Landing page for the invite link. Context (all optional): brand_name,
+username, has_temporary_password, login_url, support_email.
+{% endcomment %}
+
+{% block title %}Account activated{% endblock %}
+{% block tone %}#059669{% endblock %}
+
+{% block icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path d="M20 6 9 17l-5-5" />
+</svg>
+{% endblock %}
+
+{% block eyebrow %}Activation complete{% endblock %}
+{% block heading %}Your account is ready{% endblock %}
+
+{% block body %}
+<p>
+    {% if brand_name %}Welcome to {{ brand_name }}.{% endif %}
+    You can sign in now with the details below.
+</p>
+
+{% if username %}
+<div class="panel">
+    <dl>
+        <dt>Username</dt>
+        <dd class="mono">{{ username }}</dd>
+        {% if email %}
+        <dt>Email</dt>
+        <dd>{{ email }}</dd>
+        {% endif %}
+        <dt>Password</dt>
+        <dd>{% if has_temporary_password %}From your invitation email{% else %}Use "Forgot password"{% endif %}</dd>
+    </dl>
+</div>
+{% endif %}
+
+{% if has_temporary_password %}
+<p style="margin-top:16px;">
+    Sign in with the temporary password from your invitation email, then change it
+    from <strong>My Account</strong> — it was sent in plain text, so treat it as temporary.
+</p>
+{% else %}
+<p style="margin-top:16px;">
+    No password was set for this account. Use <strong>Forgot password</strong> on the
+    sign-in page to choose one.
+</p>
+{% endif %}
+{% endblock %}
+
+{% block actions %}
+{% if login_url %}
+<div class="actions">
+    <a class="btn" href="{{ login_url }}">Go to sign in</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block footnote %}
+If you didn't create this account,
+{% if support_email %}contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% else %}contact your administrator{% endif %}
+right away.
+{% endblock %}

@@ -1,0 +1,14 @@
+{{ brand_name }}
+
+The email address for your {{ brand_name }} account was changed and confirmed.
+This is the last message this address will receive.
+
+Account: {{ account_username }}
+Previous email: {{ current_email }}
+New email: {{ new_email }}
+Changed: {{ changed_at }}
+
+Wasn't you? Act now - whoever made this change now receives your password resets.
+Contact {% if support_email %}{{ support_email }}{% else %}your administrator{% endif %} immediately so the account can be locked.
+
+(c) {{ year }} {{ brand_name }}

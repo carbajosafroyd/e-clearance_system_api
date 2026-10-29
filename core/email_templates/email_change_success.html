@@ -1,0 +1,59 @@
+{% extends "email_templates/pages/base_page.html" %}
+
+{% comment %}
+Where the confirmation link in email_change_confirm lands once the change
+has been applied. Context: brand_name, account_username, previous_email,
+new_email, login_url, support_email.
+{% endcomment %}
+
+{% block title %}Email address confirmed{% endblock %}
+{% block tone %}#059669{% endblock %}
+
+{% block icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+    stroke-linejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+</svg>
+{% endblock %}
+
+{% block eyebrow %}Email change complete{% endblock %}
+{% block heading %}Your new email is confirmed{% endblock %}
+
+{% block body %}
+<p>
+    Your {{ brand_name|default:"account" }} email has been updated. Account mail —
+    password resets, fee reminders, notices — now goes to the new address.
+</p>
+
+<div class="panel">
+    <dl>
+        <dt>Account</dt>
+        <dd class="mono">{{ account_username }}</dd>
+        <dt>Previous</dt>
+        <dd>{{ previous_email }}</dd>
+        <dt>New</dt>
+        <dd>{{ new_email }}</dd>
+    </dl>
+</div>
+
+<p style="margin-top:16px;">
+    Your username and password are unchanged — keep signing in with
+    <strong>{{ account_username }}</strong>. If you're signed in elsewhere, refresh
+    the page to see the new address.
+</p>
+{% endblock %}
+
+{% block actions %}
+{% if login_url %}
+<div class="actions">
+    <a class="btn" href="{{ login_url }}">Back to the app</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block footnote %}
+Didn't make this change?
+{% if support_email %}Contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% else %}Contact your administrator{% endif %}
+immediately.
+{% endblock %}

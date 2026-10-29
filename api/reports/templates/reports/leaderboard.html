@@ -1,0 +1,77 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ LEADERBOARD - the standing by points earned. Context: `report` from
+ build_leaderboard_report (system_label, summary, by_system, rows).
+{% endcomment %}
+{% block report_title %}Contribution Leaderboard{% endblock %}
+{% block run_details %}{% include "reports/_module_run_details.html" %}{% endblock %}
+{% block content %}
+
+<h2>{{ report.system_label }}</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Students on the board</div>
+            <div class="card-value">{{ report.summary.students }}</div>
+            <div class="card-note">ranked by points earned, not held</div>
+        </td>
+        <td>
+            <div class="card-label">Points earned</div>
+            <div class="card-value">{{ report.summary.points_earned|intcomma }}</div>
+            <div class="card-note">{{ report.summary.points_spent|intcomma }} spent &middot; {{ report.summary.points_balance|intcomma }} still held</div>
+        </td>
+        <td>
+            <div class="card-label">Approved reports</div>
+            <div class="card-value">{{ report.summary.approved_contributions }}</div>
+            <div class="card-note">behind the points on this board</div>
+        </td>
+    </tr>
+</table>
+
+<h2>By system</h2>
+<table class="data">
+    <thead><tr><th>System</th><th class="right">Students</th><th class="right">Earned</th><th class="right">Spent</th><th class="right">Held</th></tr></thead>
+    <tbody>
+    {% for row in report.by_system %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.students }}</td><td class="num">{{ row.points_earned|intcomma }}</td>
+            <td class="num">{{ row.points_spent|intcomma }}</td><td class="num">{{ row.points_balance|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Ranking</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="7%">Rank</th><th width="14%">Student No</th><th>Student</th><th width="26%">Program</th>
+            <th class="right" width="9%">Earned</th><th class="right" width="9%">Spent</th>
+            <th class="right" width="9%">Held</th><th class="right" width="9%">Approved</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.rows %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.rank }}</td>
+            <td>{{ row.student_number }}</td>
+            <td>{{ row.student_name }}</td>
+            <td>{{ row.program }} {{ row.year_level }}{{ row.set }}</td>
+            <td class="num">{{ row.points_earned|intcomma }}</td>
+            <td class="num">{{ row.points_spent|intcomma }}</td>
+            <td class="num">{{ row.points_balance|intcomma }}</td>
+            <td class="num">{{ row.approved_contributions }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="8" class="empty">Nobody has earned points yet.</td></tr>
+    {% endfor %}
+        <tr class="total">
+            <td colspan="4">Total: {{ report.summary.students }} student(s)</td>
+            <td class="num">{{ report.summary.points_earned|intcomma }}</td>
+            <td class="num">{{ report.summary.points_spent|intcomma }}</td>
+            <td class="num">{{ report.summary.points_balance|intcomma }}</td>
+            <td class="num">{{ report.summary.approved_contributions }}</td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}

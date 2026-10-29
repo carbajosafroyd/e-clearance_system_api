@@ -1,0 +1,177 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ AUDIT LOGS - who did what, where, and when, over the filtered window.
+
+ Shapes: report.summary {total_entries, first_entry_at, last_entry_at,
+ records_returned, records_truncated}, report.by_action / by_system /
+ by_actor_type [{value, label, count}] (zero-filled), report.by_entity_type
+ [{entity_type, count}], report.top_actors [{actor_username, actor_full_name,
+ actor_type, entry_count}], report.records [...] newest first and capped -
+ the truncation note below prints when the cap bit.
+
+ The old/new value diffs are deliberately not printed here: they are JSON
+ blobs of arbitrary width and belong in the Excel export or the retrieve
+ endpoint, not an A4 column.
+{% endcomment %}
+{% block report_title %}Audit Log Report{% endblock %}
+
+{% block run_details %}
+<table class="meta">
+    <tr>
+        <td class="label">Period</td>
+        <td>{{ report.applied_filters.period }}</td>
+        <td class="label">Generated</td>
+        <td>{{ generated_at|date:"d M Y, g:i a" }}</td>
+    </tr>
+    <tr>
+        <td class="label">Systems</td>
+        <td>{{ report.applied_filters.systems }}</td>
+        <td class="label">Actions</td>
+        <td>{{ report.applied_filters.actions }}</td>
+    </tr>
+    <tr>
+        <td class="label">Actor</td>
+        <td>{{ report.applied_filters.actor }} ({{ report.applied_filters.actor_types|lower }})</td>
+        <td class="label">Entity</td>
+        <td>{{ report.applied_filters.entity }}</td>
+    </tr>
+    <tr>
+        <td class="label">Prepared by</td>
+        <td colspan="3">{{ prepared_by|default:"—" }}</td>
+    </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Total entries</div>
+            <div class="card-value">{{ report.summary.total_entries|intcomma }}</div>
+        </td>
+        <td>
+            <div class="card-label">First entry</div>
+            <div class="card-value">{{ report.summary.first_entry_at|slice:":10"|default:"—" }}</div>
+        </td>
+        <td>
+            <div class="card-label">Latest entry</div>
+            <div class="card-value">{{ report.summary.last_entry_at|slice:":10"|default:"—" }}</div>
+        </td>
+    </tr>
+</table>
+
+<h2>Entries by Action</h2>
+<table class="data">
+    <thead><tr><th>Action</th><th class="right">Entries</th></tr></thead>
+    <tbody>
+    {% for row in report.by_action %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td>
+            <td class="num">{{ row.count|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Entries by System</h2>
+<table class="data">
+    <thead><tr><th>System</th><th class="right">Entries</th></tr></thead>
+    <tbody>
+    {% for row in report.by_system %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td>
+            <td class="num">{{ row.count|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Entries by Actor Type</h2>
+<table class="data">
+    <thead><tr><th>Actor type</th><th class="right">Entries</th></tr></thead>
+    <tbody>
+    {% for row in report.by_actor_type %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td>
+            <td class="num">{{ row.count|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Entries by Entity</h2>
+<table class="data">
+    <thead><tr><th>Entity</th><th class="right">Entries</th></tr></thead>
+    <tbody>
+    {% for row in report.by_entity_type %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.entity_type }}</td>
+            <td class="num">{{ row.count|intcomma }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="2" class="empty">No entries matched these filters.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% if report.top_actors %}
+<h2>Most Active Users</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="25%">Username</th>
+            <th width="40%">Name</th>
+            <th width="18%">Actor type</th>
+            <th class="right">Entries</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for actor in report.top_actors %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ actor.actor_username|default:"(deleted user)" }}</td>
+            <td>{{ actor.actor_full_name|default:"—" }}</td>
+            <td>{{ actor.actor_type }}</td>
+            <td class="num">{{ actor.entry_count|intcomma }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h2>Entries</h2>
+{% if report.summary.records_truncated %}
+<p class="muted">
+    Showing the {{ report.summary.records_returned|intcomma }} most recent of
+    {{ report.summary.total_entries|intcomma }} entries. The figures above
+    cover all of them; narrow the date range to list the rest.
+</p>
+{% endif %}
+<table class="data">
+    <thead>
+        <tr>
+            <th width="16%">Date &amp; time</th>
+            <th width="12%">System</th>
+            <th width="10%">Action</th>
+            <th width="22%">Entity</th>
+            <th width="20%">Actor</th>
+            <th>Actor name</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for entry in report.records %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ entry.created_at_display }}</td>
+            <td>{{ entry.system }}</td>
+            <td>{{ entry.action }}</td>
+            <td>{{ entry.entity_type }} #{{ entry.entity_id }}</td>
+            <td>{{ entry.actor_username|default:entry.actor_type }}</td>
+            <td>{{ entry.actor_full_name|default:"—" }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="empty">No entries matched these filters.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

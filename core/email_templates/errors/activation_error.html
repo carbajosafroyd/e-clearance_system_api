@@ -1,0 +1,38 @@
+{% extends "email_templates/pages/base_page.html" %}
+
+{% comment %}Context: message (optional), brand_name, support_email, errors (dev only).{% endcomment %}
+
+{% block title %}Activation failed{% endblock %}
+{% block tone %}#dc2626{% endblock %}
+
+{% block icon %}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+</svg>
+{% endblock %}
+
+{% block eyebrow %}Activation failed{% endblock %}
+{% block heading %}This link no longer works{% endblock %}
+
+{% block body %}
+<p>
+    {% if message %}{{ message }}{% else %}
+    The activation link you opened is invalid, has expired, or has already been used.
+    {% endif %}
+</p>
+<p>
+    Invitations are good for a few days and can only be used once. If yours ran out,
+    ask whoever invited you to send a new one — it goes to the same address.
+</p>
+{% endblock %}
+
+{% block footnote %}
+{% if support_email %}
+Still stuck? Contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+{% else %}
+Still stuck? Contact your administrator.
+{% endif %}
+{% endblock %}

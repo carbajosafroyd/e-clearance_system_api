@@ -1,0 +1,99 @@
+{% extends "reports/base_pdf.html" %}{% load humanize %}
+{% comment %}
+ COMPLAINTS REPORT - what students said we got wrong, and how it was answered.
+
+ Context: `report` as built by services/module_reports.build_complaints_report:
+   summary      .total .open .submitted .acknowledged .resolved .rejected
+                .withdrawn .fee_related .resolution_rate .average_days_to_close
+   by_system    [ .label .total .open .resolved .rejected .withdrawn ]
+   by_category  [ .label .total .open .resolved .rejected .withdrawn ]
+   records      [ .id .student_number .student_name .program .year_level .set
+                  .system_label .category_label .title .status_label
+                  .fee_id .fee_category .fee_amount .fee_balance
+                  .filed_at .handled_by .handled_at .days_open .response ]
+{% endcomment %}
+{% block report_title %}Complaints Report{% endblock %}
+{% block run_details %}{% include "reports/_module_run_details.html" %}{% endblock %}
+{% block content %}
+
+<h2>Summary</h2>
+<table class="cards">
+    <tr>
+        <td>
+            <div class="card-label">Complaints</div>
+            <div class="card-value">{{ report.summary.total }}</div>
+            <div class="card-note">{{ report.summary.fee_related }} naming a fee</div>
+        </td>
+        <td>
+            <div class="card-label">Still open</div>
+            <div class="card-value">{{ report.summary.open }}</div>
+            <div class="card-note">{{ report.summary.submitted }} not yet picked up &middot; {{ report.summary.acknowledged }} being looked at</div>
+        </td>
+        <td>
+            <div class="card-label">Answered</div>
+            <div class="card-value">{{ report.summary.resolved }} resolved</div>
+            <div class="card-note">
+                {{ report.summary.rejected }} closed without action &middot; {{ report.summary.withdrawn }} withdrawn
+                {% if report.summary.average_days_to_close != None %}&middot; {{ report.summary.average_days_to_close }} days to close on average{% endif %}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<h2>By system</h2>
+<table class="data">
+    <thead><tr><th>System</th><th class="right">Total</th><th class="right">Open</th><th class="right">Resolved</th><th class="right">Closed</th><th class="right">Withdrawn</th></tr></thead>
+    <tbody>
+    {% for row in report.by_system %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.total }}</td><td class="num">{{ row.open }}</td>
+            <td class="num">{{ row.resolved }}</td><td class="num">{{ row.rejected }}</td><td class="num">{{ row.withdrawn }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>By category</h2>
+<table class="data">
+    <thead><tr><th>Category</th><th class="right">Total</th><th class="right">Open</th><th class="right">Resolved</th><th class="right">Closed</th><th class="right">Withdrawn</th></tr></thead>
+    <tbody>
+    {% for row in report.by_category %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.label }}</td><td class="num">{{ row.total }}</td><td class="num">{{ row.open }}</td>
+            <td class="num">{{ row.resolved }}</td><td class="num">{{ row.rejected }}</td><td class="num">{{ row.withdrawn }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6" class="empty">No complaints in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Complaints</h2>
+<table class="data">
+    <thead>
+        <tr>
+            <th width="6%">#</th><th width="20%">Student</th><th width="14%">System</th>
+            <th width="16%">Category</th><th>Title</th><th width="9%">Fee</th>
+            <th width="11%">Status</th><th width="9%">Filed</th><th width="10%">Handled by</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in report.records %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="zebra"{% endif %}>
+            <td>{{ row.id }}</td>
+            <td>{{ row.student_name }}<br><span class="muted">{{ row.student_number }} &middot; {{ row.program }} {{ row.year_level }}{{ row.set }}</span></td>
+            <td>{{ row.system_label }}</td>
+            <td>{{ row.category_label }}</td>
+            <td>{{ row.title }}{% if row.response %}<br><span class="muted">Answer: {{ row.response|truncatechars:140 }}</span>{% endif %}</td>
+            <td>{% if row.fee_id %}#{{ row.fee_id }}<br><span class="muted">{{ row.fee_category }}</span>{% else %}—{% endif %}</td>
+            <td>{{ row.status_label }}</td>
+            <td>{{ row.filed_at|slice:":10" }}</td>
+            <td>{{ row.handled_by|default:"—" }}{% if row.handled_at %}<br><span class="muted">{{ row.handled_at|slice:":10" }}</span>{% endif %}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="9" class="empty">No complaints in this period.</td></tr>
+    {% endfor %}
+        <tr class="total"><td colspan="9">Total: {{ report.summary.total }} complaint(s)</td></tr>
+    </tbody>
+</table>
+{% endblock %}

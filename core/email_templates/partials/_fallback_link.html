@@ -1,0 +1,10 @@
+{% comment %}
+The "button didn't work?" escape hatch. Always pair it with _button.html —
+plenty of mail clients strip or mangle styled anchors.
+
+    {% include "email_templates/partials/_fallback_link.html" with url=link %}
+{% endcomment %}
+<p style="margin:16px 0 0; font-size:12px; line-height:1.6; color:#64748b; text-align:center;">
+    Button not working? Copy this link into your browser:<br>
+    <span style="word-break:break-all; color:#475569;">{{ url }}</span>
+</p>
