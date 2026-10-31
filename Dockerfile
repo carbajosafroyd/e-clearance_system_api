@@ -24,7 +24,10 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . .
 
 # Collect static files into /app/staticfiles for WhiteNoise to serve
-RUN python manage.py collectstatic --noinput
+# Providing dummy build-time pepper & secret ensures build never requires runtime secrets
+RUN DJANGO_SECRET_KEY=build-dummy-secret \
+    PASSWORD_PEPPER_1=build-dummy-pepper \
+    python manage.py collectstatic --noinput
 
 # Create non-privileged user and setup directories
 RUN useradd -m -u 1000 eclearance && \

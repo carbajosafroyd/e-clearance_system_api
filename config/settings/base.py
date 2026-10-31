@@ -78,12 +78,17 @@ def _password_peppers_from_env() -> dict[int, str]:
 
 PASSWORD_PEPPERS = _password_peppers_from_env()
 
+# During docker image build (collectstatic) or test runs without pepper configured,
+# supply a temporary dummy pepper so static file collection doesn't fail.
 if not PASSWORD_PEPPERS:
-    raise ImproperlyConfigured(
-        "No PASSWORD_PEPPER_<N> is set. Generate one with "
-        "`python -c \"import secrets; print(secrets.token_urlsafe(48))\"` "
-        "and put it in the environment as PASSWORD_PEPPER_1."
-    )
+    if "collectstatic" in sys.argv:
+        PASSWORD_PEPPERS = {1: "build-time-dummy-pepper-for-collectstatic"}
+    else:
+        raise ImproperlyConfigured(
+            "No PASSWORD_PEPPER_<N> is set. Generate one with "
+            "`python -c \"import secrets; print(secrets.token_urlsafe(48))\"` "
+            "and put it in the environment as PASSWORD_PEPPER_1."
+        )
 
 _pepper_current = os.getenv("PASSWORD_PEPPER_CURRENT_VERSION", "").strip()
 if _pepper_current.isdigit() and int(_pepper_current) in PASSWORD_PEPPERS:
