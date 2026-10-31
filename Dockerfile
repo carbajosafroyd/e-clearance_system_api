@@ -23,9 +23,11 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application source code
 COPY . .
 
+# Collect static files into /app/staticfiles for WhiteNoise to serve
+RUN python manage.py collectstatic --noinput
+
 # Create non-privileged user and setup directories
 RUN useradd -m -u 1000 eclearance && \
-    mkdir -p /app/staticfiles && \
     chown -R eclearance:eclearance /app
 
 USER eclearance
