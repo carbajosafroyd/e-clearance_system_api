@@ -119,6 +119,3 @@ passenger_wsgi.py
 tmp/*
 
 in_consideration
-
-docs/
-docs
