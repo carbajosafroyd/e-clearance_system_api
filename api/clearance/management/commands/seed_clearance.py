@@ -46,7 +46,7 @@ class Command(SeedCommand):
     depends_on = ("seed_students", "seed_users")
 
     def add_seed_arguments(self, parser):
-        parser.add_argument("--name", default="School Clearance")
+        parser.add_argument("--name", default="Semestral Clearance")
         parser.add_argument("--academic-year", default=get_default_academic_year())
         parser.add_argument("--semester", default=Semester.FIRST.value)
         parser.add_argument(
