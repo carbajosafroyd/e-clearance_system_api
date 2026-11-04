@@ -75,12 +75,6 @@ SCHOOLS: tuple[SchoolSpec, ...] = (
         acronym="DNSC",
         location="New Visayas, Panabo City, Davao del Norte",
     ),
-    SchoolSpec(
-        number=2,
-        name="University of Mindanao",
-        acronym="UM",
-        location="Panabo City, Davao del Norte",
-    ),
 )
 
 #: Every campus gets the same buildings; the locker and attendance seeders
@@ -95,14 +89,7 @@ BUILDINGS: tuple[tuple[str, int], ...] = (
 
 # -- institutes ------------------------------------------------------------
 INSTITUTES: tuple[InstituteSpec, ...] = (
-    # 1 - Davao del Norte State College (Expanded & Authentic)
     InstituteSpec(school=1, name="Institute of Computing", acronym="IC"),
-    InstituteSpec(school=1, name="Institute of Aquatic and Applied Sciences", acronym="IAAS"),
-    InstituteSpec(school=1, name="Institute of Leadership, Entrepreneurship, and Good Governance", acronym="ILEGG"),
-    InstituteSpec(school=1, name="Institute of Teacher Education", acronym="ITED"),
-    
-    # 2 - University of Mindanao (Minimized)
-    InstituteSpec(school=2, name="College of Computing Education", acronym="CCE"),
 )
 
 # -- programs --------------------------------------------------------------
@@ -111,30 +98,6 @@ PROGRAMS: tuple[ProgramSpec, ...] = (
     # DNSC - Institute of Computing (IC)
     ProgramSpec("IC", "Bachelor of Science in Information Technology", "BSIT"),
     ProgramSpec("IC", "Bachelor of Science in Information Systems", "BSIS"),
-    ProgramSpec("IC", "Bachelor of Science in Computer Science", "BSCS"),
-
-    # DNSC - Institute of Aquatic and Applied Sciences (IAAS)
-    ProgramSpec("IAAS", "Bachelor of Science in Agro-Forestry", "BSAF"),
-    ProgramSpec("IAAS", "Bachelor of Science in Fisheries and Aquatic Sciences", "BSFAS"),
-    ProgramSpec("IAAS", "Bachelor of Science in Food Technology", "BSFT"),
-    ProgramSpec("IAAS", "Bachelor of Science in Marine Biology", "BSMB"),
-
-    # DNSC - Institute of Leadership, Entrepreneurship, and Good Governance (ILEGG)
-    ProgramSpec("ILEGG", "Bachelor of Public Administration", "BPA"),
-    ProgramSpec("ILEGG", "Bachelor of Science in Disaster and Resilience Management", "BSDRM"),
-    ProgramSpec("ILEGG", "Bachelor of Science in Entrepreneurship", "BSENTREP"),
-    ProgramSpec("ILEGG", "Bachelor of Science in Social Work", "BSSW"),
-    ProgramSpec("ILEGG", "Bachelor of Science in Tourism Management", "BSTM"),
-    ProgramSpec("ILEGG", "Bachelor of Science in Criminology", "BSCRIM"),
-
-    # DNSC - Institute of Teacher Education (ITED)
-    ProgramSpec("ITED", "Bachelor of Elementary Education", "BEED"),
-    ProgramSpec("ITED", "Bachelor of Secondary Education", "BSED"),
-    ProgramSpec("ITED", "Bachelor of Arts in Communication", "BACOMM"),
-    
-    # UM - College of Computing Education (Minimized)
-    ProgramSpec("CCE", "Bachelor of Science in Computer Science", "BSCS"),
-    ProgramSpec("CCE", "Bachelor of Science in Information Technology", "BSIT"),
 )
 
 #: For an institute this file does not name - one that predates the catalogue,

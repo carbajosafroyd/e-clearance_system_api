@@ -15,19 +15,44 @@ from api.seeding.support import SeedCommand
 from api.students.models import Student
 from api.users.models import User
 
-FIRST_NAMES = [
-    "Ana", "Ben", "Carlo", "Dina", "Elmer", "Fe", "Gil", "Hazel",
-    "Ivan", "Joy", "Ken", "Lea", "Mon", "Nica", "Omar", "Pia",
+TEAM_STUDENTS = [
+    {
+        "student_id": "202400633",
+        "first_name": "Froyd",
+        "middle_name": "D",
+        "last_name": "Carbajosa",
+    },
+    {
+        "student_id": "202401033",
+        "first_name": "Chieruf Jhann",
+        "middle_name": "E",
+        "last_name": "Pastedeo",
+    },
+    {
+        "student_id": "202401164",
+        "first_name": "Shane Angelo",
+        "middle_name": "C",
+        "last_name": "Garcia",
+    },
+    {
+        "student_id": "202301626",
+        "first_name": "Erick Cyle",
+        "middle_name": "A",
+        "last_name": "Embodo",
+    },
+    {
+        "student_id": "202401177",
+        "first_name": "Cyrus",
+        "middle_name": "M",
+        "last_name": "Suelto",
+    },
+    {
+        "student_id": "202400928",
+        "first_name": "Roosevelt",
+        "middle_name": "O",
+        "last_name": "Gulanes",
+    },
 ]
-LAST_NAMES = [
-    "Abad", "Bautista", "Castro", "Dizon", "Espino", "Flores", "Garcia",
-    "Hernandez", "Ilagan", "Jimenez", "Katigbak", "Lorenzo", "Mercado",
-    "Navarro", "Ocampo", "Pascual",
-]
-SETS = ["A", "B", "C"]
-
-#: Students created per program at --scale 1.
-PER_PROGRAM = 8
 
 DEFAULT_PASSWORD = "password123"
 
@@ -62,59 +87,54 @@ class Command(SeedCommand):
         password = options["password"]
         want_accounts = not options["no_accounts"]
 
-        # Continue the ID sequence rather than restarting it, so a second run
-        # with a bigger --scale adds students instead of colliding.
-        sequence = Student.objects.count()
+        bsit_program = Program.objects.filter(acronym="BSIT").first()
+        if not bsit_program:
+            bsit_program = programs[0]
 
         created_students = 0
         created_users = 0
 
-        for program in programs:
-            # Top up to the target rather than always adding a fresh batch -
-            # otherwise `seed_all` twice gives you twice the student body,
-            # and every downstream seeder doubles with it.
-            target = PER_PROGRAM * self.scale
-            existing = Student.objects.filter(program=program).count()
+        for info in TEAM_STUDENTS:
+            student_id = info["student_id"]
+            first_name = info["first_name"]
+            middle_name = info["middle_name"]
+            last_name = info["last_name"]
+            username = f"Student{student_id}"
 
-            for _ in range(max(0, target - existing)):
-                sequence += 1
-                student_id = f"2026{sequence:06d}"
+            # Check if student already exists
+            existing_student = Student.objects.filter(s_studentID=student_id).first()
+            if existing_student:
+                continue
 
-                if Student.objects.filter(s_studentID=student_id).exists():
-                    continue
-
-                first_name = self.pick(FIRST_NAMES)
-                last_name = self.pick(LAST_NAMES)
-
-                user = None
-                if want_accounts:
+            user = None
+            if want_accounts:
+                user = User.objects.filter(username=username).first()
+                if not user:
                     user = User.objects.create_user(
-                        username=f"student{student_id}",
-                        email=f"{student_id}@students.example.edu",
+                        username=username,
+                        email=f"{student_id}@students.dnsc.edu.ph",
                         password=password,
                         first_name=first_name,
                         last_name=last_name,
-                        institute=program.institute,
-                        school=program.institute.school,
+                        institute=bsit_program.institute,
+                        school=bsit_program.institute.school,
                     )
                     assign_role(user, Roles.STUDENT)
                     created_users += 1
 
-                Student.objects.create(
-                    s_studentID=student_id,
-                    # The model caps rfid at 10 characters and requires all
-                    # ten, so it mirrors the student ID rather than inventing
-                    # a longer tag.
-                    s_rfid=student_id,
-                    program=program,
-                    user=user,
-                    s_fname=first_name,
-                    s_lname=last_name,
-                    s_set=self.pick(SETS),
-                    s_lvl=self.rng.randint(1, 4),
-                    s_status=Student.StudentStatus.ENROLLED,
-                )
-                created_students += 1
+            Student.objects.create(
+                s_studentID=student_id,
+                s_rfid=student_id,
+                program=bsit_program,
+                user=user,
+                s_fname=first_name,
+                s_mname=middle_name,
+                s_lname=last_name,
+                s_set="C",
+                s_lvl=3,
+                s_status=Student.StudentStatus.ENROLLED,
+            )
+            created_students += 1
 
         self.created("student", created_students)
         self.created("student account", created_users)
