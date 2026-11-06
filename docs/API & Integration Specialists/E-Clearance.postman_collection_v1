@@ -1,0 +1,562 @@
+{
+  "info": {
+    "_postman_id": "73033fc5-1799-4f8a-9b56-004fa08ec259",
+    "name": "E-Clearance",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59574564",
+    "_collection_link": "https://go.postman.co/collection/59574564-73033fc5-1799-4f8a-9b56-004fa08ec259?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_16qx}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"username\": \"superadmin\",\r\n  \"password\": \"password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/login/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "login",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clearance Type",
+      "item": [
+        {
+          "name": "Get Clearance Types",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_176y}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"count\": 123,\r\n  \"next\": \"http://api.example.org/accounts/?current_page=4\",\r\n  \"previous\": \"http://api.example.org/accounts/?current_page=2\",\r\n  \"results\": [\r\n    {\r\n      \"id\": 0,\r\n      \"name\": \"string\",\r\n      \"academic_year\": \"string\",\r\n      \"semester\": \"string\",\r\n      \"is_active\": true,\r\n      \"target_year_levels\": \"string\",\r\n      \"is_issued\": true,\r\n      \"issued_at\": \"2026-11-06T07:46:50.019Z\",\r\n      \"requirement_count\": 0\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/clearance-types/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clearance-types",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Clearance Types",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0ohl}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"Test Clearance 1\",\r\n    \"description\": \"Test Description\",\r\n    \"academic_year\": \"2026-2027\",\r\n    \"semester\": \"1st Semester\",\r\n    \"is_active\": true,\r\n    \"target_year_levels\": [1,2,3,4]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/clearance-types/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clearance-types",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clearance Requirement",
+      "item": [
+        {
+          "name": "Get Clearance Requirements",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_16qx}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"count\": 123,\r\n  \"next\": \"http://api.example.org/accounts/?current_page=4\",\r\n  \"previous\": \"http://api.example.org/accounts/?current_page=2\",\r\n  \"results\": [\r\n    {\r\n      \"id\": 0,\r\n      \"clearance_type_id\": 0,\r\n      \"clearance_type_name\": \"string\",\r\n      \"name\": \"string\",\r\n      \"authorizing_role_id\": 0,\r\n      \"authorizing_role_name\": \"string\",\r\n      \"authorizing_roles\": [\r\n        {\r\n          \"id\": 0,\r\n          \"name\": \"string\"\r\n        }\r\n      ],\r\n      \"authorizing_role_ids\": [\r\n        0\r\n      ],\r\n      \"authorizing_role_names\": [\r\n        \"string\"\r\n      ],\r\n      \"order_sequence\": 0,\r\n      \"created_at\": \"2026-11-06T07:12:11.533Z\",\r\n      \"updated_at\": \"2026-11-06T07:12:11.533Z\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/clearance-requirements/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "clearance-requirements",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Student Clearance",
+      "item": [
+        {
+          "name": "Get Student Clearance",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_176y}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"count\": 123,\r\n  \"next\": \"http://api.example.org/accounts/?current_page=4\",\r\n  \"previous\": \"http://api.example.org/accounts/?current_page=2\",\r\n  \"results\": [\r\n    {\r\n      \"id\": 0,\r\n      \"student_id\": 0,\r\n      \"student_name\": \"string\",\r\n      \"student_number\": \"string\",\r\n      \"program\": \"string\",\r\n      \"year_level\": 0,\r\n      \"s_set\": \"string\",\r\n      \"clearance_type_id\": 0,\r\n      \"clearance_type_name\": \"string\",\r\n      \"academic_year\": \"string\",\r\n      \"semester\": \"string\",\r\n      \"status\": \"pending\",\r\n      \"verification_token\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r\n      \"date_initiated\": \"2026-11-06T08:18:55.247Z\",\r\n      \"date_completed\": \"2026-11-06T08:18:55.247Z\",\r\n      \"is_enrolled\": true,\r\n      \"enrolled_at\": \"2026-11-06T08:18:55.247Z\",\r\n      \"enrolled_by_user_id\": 0\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/student-clearances/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "student-clearances",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Student",
+      "item": [
+        {
+          "name": "Get Students",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0itf}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"count\": 123,\r\n  \"next\": \"http://api.example.org/accounts/?current_page=4\",\r\n  \"previous\": \"http://api.example.org/accounts/?current_page=2\",\r\n  \"results\": [\r\n    {\r\n      \"id\": 0,\r\n      \"program_name\": \"string\",\r\n      \"user\": {\r\n        \"id\": 0,\r\n        \"username\": \"string\",\r\n        \"email\": \"user@example.com\",\r\n        \"first_name\": \"string\",\r\n        \"last_name\": \"string\",\r\n        \"profile\": \"string\"\r\n      },\r\n      \"s_studentID\": \"stringstri\",\r\n      \"s_rfid\": \"stringstri\",\r\n      \"s_fname\": \"string\",\r\n      \"s_mname\": \"string\",\r\n      \"s_lname\": \"string\",\r\n      \"s_suffix\": \"string\",\r\n      \"s_set\": \"string\",\r\n      \"s_lvl\": 4294967295,\r\n      \"s_status\": \"enrolled\",\r\n      \"s_image\": \"string\",\r\n      \"cloudinary_version\": 65535,\r\n      \"program\": 0\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Students",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0g0a}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"s_studentID\": \"202401172\",\r\n  \"s_rfid\": \"202401172\",\r\n  \"s_fname\": \"Feby Johnrel\",\r\n  \"s_mname\": \"R\",\r\n  \"s_lname\": \"Malbino\",\r\n  \"s_suffix\": \"\",\r\n  \"s_set\": \"C\",\r\n  \"s_lvl\": 3,\r\n  \"s_status\": \"enrolled\",\r\n  \"s_image\": \"\",\r\n  \"cloudinary_version\": 65535,\r\n  \"updated_by\": 0,\r\n  \"program\": 0,\r\n  \"user\": 0\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Students ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0g0a}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"id\": 0,\r\n  \"user\": {\r\n    \"id\": 0,\r\n    \"username\": \"string\",\r\n    \"email\": \"user@example.com\",\r\n    \"first_name\": \"string\",\r\n    \"last_name\": \"string\",\r\n    \"institute\": {\r\n      \"id\": 0,\r\n      \"institute_name\": \"string\",\r\n      \"acronym\": \"string\",\r\n      \"school_id\": 0,\r\n      \"school_name\": \"string\",\r\n      \"logo\": \"string\",\r\n      \"background_image\": \"string\",\r\n      \"email_host_user\": \"user@example.com\",\r\n      \"default_from_email\": \"string\",\r\n      \"has_email_password\": true,\r\n      \"email_sender_configured\": true,\r\n      \"effective_email_sender\": {\r\n        \"additionalProp1\": \"string\",\r\n        \"additionalProp2\": \"string\",\r\n        \"additionalProp3\": \"string\"\r\n      }\r\n    },\r\n    \"school\": {\r\n      \"id\": 0,\r\n      \"school_name\": \"string\",\r\n      \"short_name\": \"string\",\r\n      \"logo\": \"string\",\r\n      \"background_image\": \"string\",\r\n      \"location\": \"string\"\r\n    },\r\n    \"group_count\": 0,\r\n    \"is_active\": true,\r\n    \"profile\": \"string\"\r\n  },\r\n  \"program\": {\r\n    \"id\": 0,\r\n    \"institute\": {\r\n      \"id\": 0,\r\n      \"institute_name\": \"string\",\r\n      \"acronym\": \"string\",\r\n      \"logo\": \"string\",\r\n      \"background_image\": \"string\",\r\n      \"logo_cloudinary_version\": 65535,\r\n      \"background_cloudinary_version\": 65535,\r\n      \"school\": {\r\n        \"id\": 0,\r\n        \"school_name\": \"string\",\r\n        \"short_name\": \"string\",\r\n        \"logo\": \"string\",\r\n        \"background_image\": \"string\",\r\n        \"location\": \"string\",\r\n        \"email_host_user\": \"user@example.com\",\r\n        \"default_from_email\": \"string\",\r\n        \"has_email_password\": true,\r\n        \"email_sender_configured\": true,\r\n        \"effective_email_sender\": {\r\n          \"additionalProp1\": \"string\",\r\n          \"additionalProp2\": \"string\",\r\n          \"additionalProp3\": \"string\"\r\n        },\r\n        \"created_at\": \"2026-11-06T08:34:40.846Z\",\r\n        \"updated_at\": \"2026-11-06T08:34:40.846Z\"\r\n      },\r\n      \"email_host_user\": \"user@example.com\",\r\n      \"default_from_email\": \"string\",\r\n      \"has_email_password\": true,\r\n      \"email_sender_configured\": true,\r\n      \"effective_email_sender\": {\r\n        \"additionalProp1\": \"string\",\r\n        \"additionalProp2\": \"string\",\r\n        \"additionalProp3\": \"string\"\r\n      },\r\n      \"created_at\": \"2026-11-06T08:34:40.846Z\",\r\n      \"updated_at\": \"2026-11-06T08:34:40.846Z\"\r\n    },\r\n    \"created_at\": \"2026-11-06T08:34:40.846Z\",\r\n    \"updated_at\": \"2026-11-06T08:34:40.846Z\",\r\n    \"name\": \"string\",\r\n    \"acronym\": \"string\",\r\n    \"status\": \"active\"\r\n  },\r\n  \"created_at\": \"2026-11-06T08:34:40.846Z\",\r\n  \"updated_at\": \"2026-11-06T08:34:40.846Z\",\r\n  \"s_studentID\": \"stringstri\",\r\n  \"s_rfid\": \"stringstri\",\r\n  \"s_fname\": \"string\",\r\n  \"s_mname\": \"string\",\r\n  \"s_lname\": \"string\",\r\n  \"s_suffix\": \"string\",\r\n  \"s_set\": \"string\",\r\n  \"s_lvl\": 4294967295,\r\n  \"s_status\": \"enrolled\",\r\n  \"s_image\": \"string\",\r\n  \"cloudinary_version\": 65535,\r\n  \"updated_by\": 0\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/{id}/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "{id}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Students ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0g0a}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"s_studentID\": \"stringstri\",\r\n  \"s_rfid\": \"stringstri\",\r\n  \"s_fname\": \"string\",\r\n  \"s_mname\": \"string\",\r\n  \"s_lname\": \"string\",\r\n  \"s_suffix\": \"string\",\r\n  \"s_set\": \"string\",\r\n  \"s_lvl\": 4294967295,\r\n  \"s_status\": \"enrolled\",\r\n  \"s_image\": \"string\",\r\n  \"cloudinary_version\": 65535,\r\n  \"updated_by\": 0,\r\n  \"program\": 0,\r\n  \"user\": 0\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/1/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch Students ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0itf}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"s_studentID\": \"2024-01164\",\r\n  \"s_rfid\": \"2024-01164\",\r\n  \"s_fname\": \"Feby Johnrel\",\r\n  \"s_mname\": \"R\",\r\n  \"s_lname\": \"Malbino\",\r\n  \"s_suffix\": null,\r\n  \"s_set\": \"C\",\r\n  \"s_lvl\": 3,\r\n  \"s_status\": \"enrolled\",\r\n  \"s_image\": null,\r\n  \"cloudinary_version\": null,\r\n  \"updated_by\": 1,\r\n  \"program\": 1,\r\n  \"user\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/1/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Students ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{json_web_token_0itf}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://e-clearance-system-api.onrender.com/api/v1/students/2/",
+              "protocol": "https",
+              "host": [
+                "e-clearance-system-api",
+                "onrender",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "2",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "json_web_token_0qvt",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_14jk",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_1dxy",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_16qx",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_05io",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0ohl",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0msu",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_176y",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0g0a",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0itf",
+      "secret": true
+    }
+  ]
+}
