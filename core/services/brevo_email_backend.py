@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 import requests
+from email.utils import parseaddr
 from django.conf import settings
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.message import EmailMessage
@@ -27,7 +28,8 @@ class BrevoEmailBackend(BaseEmailBackend):
 
     def __init__(self, api_key: str | None = None, fail_silently: bool = False, **kwargs):
         super().__init__(fail_silently=fail_silently, **kwargs)
-        self.api_key = api_key or getattr(settings, "BREVO_API_KEY", None) or os.getenv("BREVO_API_KEY", "")
+        raw_key = api_key or getattr(settings, "BREVO_API_KEY", None) or os.getenv("BREVO_API_KEY", "")
+        self.api_key = str(raw_key).strip().strip("'\"")
 
     def send_messages(self, email_messages: list[EmailMessage]) -> int:
         if not email_messages:
@@ -58,16 +60,24 @@ class BrevoEmailBackend(BaseEmailBackend):
                             html_content = content
                             break
 
-                sender_name = getattr(settings, "EMAIL_BRAND_NAME", "E-Clearance System")
+                parsed_name, parsed_email = parseaddr(message.from_email or "")
+                sender_name = parsed_name or getattr(settings, "EMAIL_BRAND_NAME", "E-Clearance System")
                 sender_email = (
-                    message.from_email
+                    parsed_email
                     or getattr(settings, "DEFAULT_FROM_EMAIL", None)
                     or getattr(settings, "EMAIL_HOST_USER", None)
                     or "froydcarbajosa14@gmail.com"
                 )
 
-                # Format recipients
-                to_list = [{"email": addr} for addr in message.to]
+                # Format recipients cleanly using parseaddr
+                to_list = []
+                for addr in message.to:
+                    to_name, to_email = parseaddr(addr)
+                    recipient_entry = {"email": to_email or addr}
+                    if to_name:
+                        recipient_entry["name"] = to_name
+                    to_list.append(recipient_entry)
+
                 if not to_list:
                     continue
 
