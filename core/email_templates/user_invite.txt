@@ -1,22 +1,27 @@
-{{ brand_name }}
+E-Clearance System - {{ brand_name }}
 
-{% if invited_by %}{{ invited_by }} has invited you{% else %}You've been invited{% endif %} to join the {{ brand_name }} platform{% if institute_name %} under {{ institute_name }}{% endif %}.
+{% if invited_by %}{{ invited_by }} has invited you{% else %}You have been invited{% endif %} to register your student account on the E-Clearance System of {{ brand_name }}{% if institute_name %} ({{ institute_name }}){% endif %}.
 
+Purpose:
+This account connects your student identity to track your institutional clearance checklist across signatories (Adviser, Librarian, Cashier, Program Chair, Dean), upload deficiency settlement proofs, and generate your verified Certificate of Clearance with authentic QR code verification.
+
+Platform: E-Clearance System
 Assigned role: {{ group_name }}
 {% if username %}Username: {{ username }}
 {% endif %}Email: {{ email }}
 {% if temporary_password %}Temporary password: {{ temporary_password }}
 
-Use the temporary password for your first sign-in{% if username %} together with the username above{% endif %}, then change it from My Account.
-Keep this email private - anyone with that password could sign in as you until you change it.
+Use the temporary password for your first sign-in{% if username %} together with the username above{% endif %}. You may also sign in directly using Google Sign-In once activated.
+Keep this password private.
 {% endif %}
+
 Activate your account:
 {{ link }}
 
 This invitation expires in {{ expiry_days|default:3 }} days. Your account is not created until you activate it.
 
-If you weren't expecting this invitation you can ignore this email.
+If you were not expecting this invitation, you can ignore this email.
 {% if support_email %}
 Need help? Contact {{ support_email }}.
 {% endif %}
-(c) {{ year }} {{ brand_name }}
+(c) {{ year }} E-Clearance System - {{ brand_name }}

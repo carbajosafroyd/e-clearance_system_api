@@ -33,10 +33,11 @@ It is important to understand the distinction between the server origin and the 
 ```bash
 # Vite Configuration (.env.production / .env.local)
 VITE_API_BASE_URL=https://e-clearance-system-api.onrender.com/api/v1/
+VITE_GOOGLE_CLIENT_ID=976568905659-f0kanbapsqp6puq640df022l77eontko.apps.googleusercontent.com
 
 # Next.js / Create-React-App Alternative
 NEXT_PUBLIC_API_BASE_URL=https://e-clearance-system-api.onrender.com/api/v1/
-REACT_APP_API_BASE_URL=https://e-clearance-system-api.onrender.com/api/v1/
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=976568905659-f0kanbapsqp6puq640df022l77eontko.apps.googleusercontent.com
 ```
 
 ### 1.2 Authentication and Header Management
@@ -74,7 +75,41 @@ apiClient.interceptors.request.use((config) => {
 export default apiClient;
 ```
 
-### 1.3 Role-Based Route Redirection
+### 1.3 Google Sign-In Authentication
+The backend supports Google Identity Services / OAuth 2.0 authentication. Frontend applications exchange a Google ID Token (credential) for the clearance platform's JWT access and refresh token pair.
+
+* **OAuth Client ID:**
+  ```text
+  976568905659-f0kanbapsqp6puq640df022l77eontko.apps.googleusercontent.com
+  ```
+* **Endpoint:** `POST /api/v1/auth/google/`
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+  ```json
+  {
+    "token": "<GOOGLE_ID_TOKEN_CREDENTIAL>"
+  }
+  ```
+* **Success Response (`200 OK`):**
+  ```json
+  {
+    "access": "eyJhbGciOiJIUzI1NiIsIn...",
+    "refresh": "eyJhbGciOiJIUzI1NiIsIn..."
+  }
+  ```
+* **Backend Validation and Error Codes (`400 Bad Request` / `403 Forbidden`):**
+  The endpoint verifies the Google ID token signature against Google's public keys and asserts audience match with the Google Client ID. It then resolves the matching user account in the database.
+  
+  | Error Code (`errors.code`) | HTTP Status | Description / Resolution |
+  | :--- | :--- | :--- |
+  | `no_account` | `400 Bad Request` | Verified Google account has no matching registered user in the database. Instruct the user to contact the administrator or invite manager. |
+  | `email_not_verified` | `403 Forbidden` | Account exists but has not been activated via institutional email verification (`email_verified_at` is null). |
+  | `account_inactive` | `403 Forbidden` | Account is marked inactive (`is_active = false`). |
+  | `invalid_token` | `400 Bad Request` | Token signature is invalid or minted for a different client. |
+  | `token_expired` | `400 Bad Request` | Token expired before backend verification. Re-trigger Google sign-in. |
+  | `google_unreachable` | `503 Service Unavailable` | Backend was temporarily unable to reach Google's certificate endpoints. |
+
+### 1.4 Role-Based Route Redirection
 Upon authentication, query the user profile at `GET /api/v1/me/`. Inspect the `groups` array to determine the target portal destination:
 
 ```typescript
@@ -425,6 +460,7 @@ All student passwords are: `password123`
 | `202301626` | `Student202301626` | Erick Cyle A. Embodo | BSIT 3-C | 6 Sequential Items |
 | `202401177` | `Student202401177` | Cyrus M. Suelto | BSIT 3-C | 6 Sequential Items |
 | `202400928` | `Student202400928` | Roosevelt O. Gulanes | BSIT 3-C | 6 Sequential Items |
+| `202400906` | `gaan0906` (`gaan0906@gmail.com`) | Frontend Dev Gaan | BSIT 3-C | 6 Sequential Items (Google Sign-In Enabled) |
 
 ### 6.2 Administrative and Staff Accounts
 Default seeded password for all administrative accounts: `password123`

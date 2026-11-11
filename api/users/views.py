@@ -630,7 +630,7 @@ class UserInviteView(APIView):
         data = serializer.save()
 
         send_email_async(
-            subject="Complete your account registration",
+            subject="Complete your E-Clearance System registration",
             to_email=data.email,
             template_name="user_invite",
             context=_invite_context(data, request.user),

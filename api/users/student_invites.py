@@ -371,7 +371,7 @@ def send_invitations_in_background(tokens, inviter) -> None:
 
     messages = [
         {
-            "subject": "Complete your account registration",
+            "subject": "Complete your E-Clearance System registration",
             "to_email": token.email,
             "template_name": "user_invite",
             "context": _invite_context(token, inviter),
