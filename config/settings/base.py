@@ -275,8 +275,12 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 # MUST be explicitly set to True when frontend uses credentials/cookies/headers
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+CORS_ALLOWED_ORIGINS = [
+    origin.rstrip("/") for origin in env_list("CORS_ALLOWED_ORIGINS")
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.rstrip("/") for origin in env_list("CSRF_TRUSTED_ORIGINS")
+]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
