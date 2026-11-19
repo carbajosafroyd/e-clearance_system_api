@@ -34,7 +34,7 @@ ALLOWED_HOSTS = sorted(
 
 _raw_csrf = env_list(
     "CSRF_TRUSTED_ORIGINS",
-    "https://*.onrender.com",
+    "https://*.onrender.com,https://*.vercel.app,https://e-clearance-dnsc.vercel.app",
 )
 _clean_csrf = []
 for _origin in _raw_csrf:
@@ -45,7 +45,7 @@ for _origin in _raw_csrf:
         _clean_csrf.append(_origin)
 
 CSRF_TRUSTED_ORIGINS = sorted(
-    list(set(_clean_csrf + ["https://*.onrender.com"]))
+    list(set(CSRF_TRUSTED_ORIGINS + _clean_csrf + ["https://*.onrender.com", "https://*.vercel.app"]))
 )
 
 # Hardening — safe defaults for a deployed service sitting behind HTTPS

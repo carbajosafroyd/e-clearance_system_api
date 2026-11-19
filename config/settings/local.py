@@ -12,9 +12,18 @@ DEBUG = True
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
 
 # Sensible defaults for local frontend dev servers; override via .env if needed
-CORS_ALLOWED_ORIGINS = env_list(
+_local_cors = env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://127.0.0.1:5500,http://localhost:5173,http://localhost:3000,http://localhost:49181",
+    "http://127.0.0.1:5500,http://localhost:5173,http://localhost:3000,http://localhost:49181,https://e-clearance-dnsc.vercel.app",
+)
+CORS_ALLOWED_ORIGINS = sorted(
+    list(
+        {
+            origin.rstrip("/")
+            for origin in (CORS_ALLOWED_ORIGINS + _local_cors)
+            if origin.strip()
+        }
+    )
 )
 
 # Optional: run against local SQLite instead of MySQL by setting USE_SQLITE=True
