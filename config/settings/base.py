@@ -275,11 +275,40 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 # MUST be explicitly set to True when frontend uses credentials/cookies/headers
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
-    origin.rstrip("/") for origin in env_list("CORS_ALLOWED_ORIGINS")
+# Standard trusted origins that are always permitted across environments:
+DEFAULT_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://e-clearance-dnsc.vercel.app",
+    "https://e-clearance-system-api.onrender.com",
 ]
-CSRF_TRUSTED_ORIGINS = [
-    origin.rstrip("/") for origin in env_list("CSRF_TRUSTED_ORIGINS")
+
+# Merge defaults with any environment variables, stripping any accidental trailing slashes
+CORS_ALLOWED_ORIGINS = sorted(
+    list(
+        {
+            origin.rstrip("/")
+            for origin in (DEFAULT_TRUSTED_ORIGINS + env_list("CORS_ALLOWED_ORIGINS"))
+            if origin.strip()
+        }
+    )
+)
+
+CSRF_TRUSTED_ORIGINS = sorted(
+    list(
+        {
+            origin.rstrip("/")
+            for origin in (DEFAULT_TRUSTED_ORIGINS + env_list("CSRF_TRUSTED_ORIGINS"))
+            if origin.strip()
+        }
+    )
+)
+
+# Automatically allow dynamic Vercel preview branch deployments
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.vercel\.app$",
 ]
 
 REST_FRAMEWORK = {
