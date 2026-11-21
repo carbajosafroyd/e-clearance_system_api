@@ -81,12 +81,12 @@ PER_INSTITUTE_ACCOUNTS = (
     AccountSpec("admin", "Alex", "Aparece", Roles.INSTITUTE_ADMIN, essential=True),
     AccountSpec("staff", "Jessa", "Terig", Roles.INSTITUTE_STAFF),
     AccountSpec("clearanceadmin", "Noel", "Cruz", Roles.CLEARANCE_ADMIN),
-    AccountSpec("librarian", "Grace", "Lim", Roles.LIBRARIAN),
-    AccountSpec("dean", "Micah", "Floro", Roles.DEAN),
-    AccountSpec("cashier", "Paz", "Domingo", Roles.CASHIER),
-    AccountSpec("adviser", "Ivan", "Trinidad", Roles.ADVISER),
-    AccountSpec("programchair", "Cora", "Aguilar", Roles.PROGRAM_CHAIR),
-    AccountSpec("governor", "Dante", "Rosario", Roles.GOVERNOR),
+    AccountSpec("librarian", "Gehlee", "Dangca", Roles.LIBRARIAN),
+    AccountSpec("cashier", "Jeo", "Ong", Roles.CASHIER),
+    AccountSpec("adviser", "Nathan", "Garcia", Roles.ADVISER),
+    AccountSpec("programchair", "Primo", "Alterado", Roles.PROGRAM_CHAIR),
+    AccountSpec("governor", "Raheel", "Bhyria", Roles.GOVERNOR),
+    AccountSpec("dean", "Mikee", "Quintos", Roles.DEAN),
 )
 
 #: Accounts that belong to a whole school rather than to one institute,
