@@ -1033,6 +1033,14 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
         instance.delete()
         evaluate_student_clearance_status(sc, actor=self.request.user)
 
+    @extend_schema(
+        summary="Submit proof or reply/re-check note for clearance deficiency",
+        description=(
+            "Allows a student (or clearance admin) to submit proof of compliance "
+            "(image/PDF attachment) and/or an explanatory reply/payment reference note "
+            "for a clearance item. At least one of file or proof_notes must be provided."
+        ),
+    )
     @action(detail=True, methods=["post"], url_path="upload-proof")
     def upload_proof(self, request, pk=None):
         item = self.get_object()
@@ -1046,32 +1054,50 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
             if not student or student.id != item_student.id:
                 raise PermissionDenied("You do not have permission to upload proof for another student's clearance.")
 
-        file = request.FILES.get("file") or request.FILES.get("proof")
-        if not file:
-            raise ValidationError({"file": "A proof file (image or PDF) is required."})
+        file = (
+            request.FILES.get("file")
+            or request.FILES.get("proof")
+            or request.FILES.get("proof_attachment")
+        )
+        proof_notes = (
+            request.data.get("proof_notes")
+            or request.data.get("remarks")
+            or request.data.get("reply")
+            or request.data.get("note")
+            or ""
+        )
+        if isinstance(proof_notes, str):
+            proof_notes = proof_notes.strip()
 
-        proof_notes = request.data.get("proof_notes") or request.data.get("remarks") or ""
+        if not file and not proof_notes:
+            raise ValidationError(
+                {"detail": "Either a proof file (image/PDF) or an explanatory note/reply is required."}
+            )
 
-        from api.utils.cloudinary.paths import folder_for, tags_for, Kind
-        from api.utils.cloudinary.cloudinary_utils import upload_image_versioned, delete_image
+        if file:
+            from api.utils.cloudinary.paths import folder_for, tags_for, Kind
+            from api.utils.cloudinary.cloudinary_utils import upload_image_versioned, delete_image
 
-        try:
-            folder = folder_for(item_student, Kind.CLEARANCE_PROOFS)
-            tags = tags_for(item_student) + [f"requirement:{item.requirement_id}", f"item:{item.id}"]
-            uploaded = upload_image_versioned(file, folder=folder, tags=tags)
-        except Exception as e:
-            raise ValidationError({"file": f"Failed to upload file to storage: {str(e)}"})
-
-        # If previous proof existed, delete it from Cloudinary
-        if item.proof_attachment:
             try:
-                delete_image(item.proof_attachment, version=item.cloudinary_version)
-            except Exception:
-                pass
+                folder = folder_for(item_student, Kind.CLEARANCE_PROOFS)
+                tags = tags_for(item_student) + [f"requirement:{item.requirement_id}", f"item:{item.id}"]
+                uploaded = upload_image_versioned(file, folder=folder, tags=tags)
+            except Exception as e:
+                raise ValidationError({"file": f"Failed to upload file to storage: {str(e)}"})
 
-        item.proof_attachment = uploaded.public_id
-        item.cloudinary_version = uploaded.version
-        item.proof_notes = proof_notes
+            # If previous proof existed, delete it from Cloudinary
+            if item.proof_attachment:
+                try:
+                    delete_image(item.proof_attachment, version=item.cloudinary_version)
+                except Exception:
+                    pass
+
+            item.proof_attachment = uploaded.public_id
+            item.cloudinary_version = uploaded.version
+
+        if proof_notes:
+            item.proof_notes = proof_notes
+
         item.proof_uploaded_at = timezone.now()
         item.updated_by = user
         item.save(
@@ -1111,13 +1137,31 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
+        detail_msg = (
+            "Proof of compliance uploaded successfully."
+            if file
+            else "Compliance note/reply submitted successfully."
+        )
+
         return Response(
             {
-                "detail": "Proof of compliance uploaded successfully.",
+                "detail": detail_msg,
                 "item": StudentClearanceItemReadSerializer(item).data,
             },
             status=status.HTTP_200_OK,
         )
+
+    @extend_schema(
+        summary="Submit reply or request re-check for clearance item",
+        description="Alias for upload_proof to submit an explanatory reply or re-check request without or with a file.",
+    )
+    @action(detail=True, methods=["post"], url_path="reply")
+    def reply(self, request, pk=None):
+        return self.upload_proof(request, pk=pk)
+
+    @action(detail=True, methods=["post"], url_path="request-recheck")
+    def request_recheck(self, request, pk=None):
+        return self.upload_proof(request, pk=pk)
 
     @action(detail=True, methods=["delete"], url_path="remove-proof")
     def remove_proof(self, request, pk=None):

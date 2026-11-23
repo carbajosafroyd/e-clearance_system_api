@@ -294,6 +294,8 @@ class CanManageStudentClearanceItem(BasePermission):
         if request.method in SAFE_METHODS or getattr(view, "action", None) in [
             "upload_proof",
             "remove_proof",
+            "reply",
+            "request_recheck",
         ]:
             return True
 
@@ -316,6 +318,8 @@ class CanManageStudentClearanceItem(BasePermission):
             if request.method in SAFE_METHODS or getattr(view, "action", None) in [
                 "upload_proof",
                 "remove_proof",
+                "reply",
+                "request_recheck",
             ]:
                 return is_own_student_clearance_object(user, obj)
 

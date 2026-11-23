@@ -199,24 +199,31 @@ export function resolvePortalRoute(user: UserProfile): string {
 
 ---
 
-### 2.2 Upload Settlement Proof
-* **Screen / Dialog:** Settlement Proof Submission Dialog (`S-2`)
-* **Endpoint:** `POST /api/v1/student-clearance-items/{id}/upload-proof/`
-* **Request Format:** `multipart/form-data`
-* **Media Handling:** The backend automatically uploads the binary file to institutional Cloudinary storage (`ubxjjws9`) and returns the permanent HTTPS CDN asset URL.
-* **Form Parameters:**
-  * `proof_attachment` (File, required): Image (JPEG/PNG) or PDF document.
-  * `proof_notes` (String, optional): Transaction reference numbers or settlement details.
+### 2.2 Submit Settlement Proof, Reply, or Re-check Request
+* **Screen / Dialog:** Settlement Proof / Re-check Dialog (`S-2`)
+* **Endpoint:** `POST /api/v1/student-clearance-items/{id}/upload-proof/`  
+  *(Aliases: `/api/v1/student-clearance-items/{id}/reply/`, `/api/v1/student-clearance-items/{id}/request-recheck/`)*
+* **Request Format:** `multipart/form-data` (when uploading a file) or `application/json` (for text-only notes/replies).
+* **Media Handling:** When a file is included, the backend uploads it to Cloudinary storage and returns the permanent CDN asset URL. When no file is attached, the note is recorded and dispatches a re-check notification.
+* **Payload Parameters (at least one is required):**
+  * `proof_attachment` / `file` (File, optional): Image (JPEG/PNG) or PDF document.
+  * `proof_notes` / `reply` (String, optional): Explanation, transaction reference number, or settlement message.
 * **Client Implementation:**
+
 ```typescript
+// Option A: With File Attachment (Receipt photo / PDF)
 async function submitSettlementProof(
   itemId: number,
-  file: File,
-  notes: string
+  file?: File,
+  notes?: string
 ) {
   const formData = new FormData();
-  formData.append("proof_attachment", file);
-  formData.append("proof_notes", notes);
+  if (file) {
+    formData.append("proof_attachment", file);
+  }
+  if (notes) {
+    formData.append("proof_notes", notes);
+  }
 
   const response = await apiClient.post(
     `/student-clearance-items/${itemId}/upload-proof/`,
@@ -229,8 +236,19 @@ async function submitSettlementProof(
   );
   return response.data;
 }
+
+// Option B: Text-only Reply / Re-check Request (e.g., GCash Ref # without receipt image)
+async function submitRecheckRequest(itemId: number, replyNote: string) {
+  const response = await apiClient.post(
+    `/student-clearance-items/${itemId}/reply/`,
+    {
+      proof_notes: replyNote,
+    }
+  );
+  return response.data;
+}
 ```
-* **Resulting State:** Item `status` transitions to `"under_review"`.
+* **Signatory Notification:** Dispatches `CLEARANCE_PROOF_SUBMITTED` notification alerting the assigned signatory that the student has submitted compliance/re-check details.
 
 ---
 
