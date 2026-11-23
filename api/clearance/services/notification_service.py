@@ -92,11 +92,21 @@ def notify_proof_submitted(item: StudentClearanceItem, student_user=None) -> Non
         proof_note = item.proof_notes or "None provided"
 
         for signatory in signatories:
+            action_desc = (
+                "uploaded proof of compliance"
+                if item.proof_attachment
+                else "submitted a reply/re-check request"
+            )
+            title = (
+                f"Proof Uploaded: {item.requirement.name}"
+                if item.proof_attachment
+                else f"Re-check Request: {item.requirement.name}"
+            )
             notify_user(
                 user=signatory,
-                title=f"Proof Uploaded: {item.requirement.name}",
+                title=title,
                 message=(
-                    f"Student {student_name} ({student_id_str}) uploaded proof of compliance "
+                    f"Student {student_name} ({student_id_str}) {action_desc} "
                     f"for '{item.requirement.name}'. Notes: {proof_note}"
                 ),
                 type=Notification.NotificationType.CLEARANCE_PROOF_SUBMITTED,

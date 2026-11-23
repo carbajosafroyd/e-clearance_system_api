@@ -635,6 +635,59 @@ class DeficiencyAndProofTests(TestCase):
         self.assertIn("Pedro Penduko", notif.message)
         self.assertIn("Library Clearance", notif.message)
 
+    def test_student_can_submit_text_reply_without_file(self):
+        self.client.force_authenticate(user=self.student_user1)
+        response = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/upload-proof/",
+            {"proof_notes": "Paid over the counter, Reference #987654"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.item_library1.refresh_from_db()
+        self.assertIsNone(self.item_library1.proof_attachment)
+        self.assertEqual(self.item_library1.proof_notes, "Paid over the counter, Reference #987654")
+        self.assertIsNotNone(self.item_library1.proof_uploaded_at)
+
+        # Signatory should receive a re-check / reply notification
+        notif = Notification.objects.filter(
+            user=self.librarian_user,
+            type=Notification.NotificationType.CLEARANCE_PROOF_SUBMITTED,
+        ).last()
+        self.assertIsNotNone(notif)
+        self.assertIn("Pedro Penduko", notif.message)
+        self.assertIn("Re-check Request", notif.title)
+        self.assertIn("Reference #987654", notif.message)
+
+    def test_student_can_use_reply_and_request_recheck_aliases(self):
+        self.client.force_authenticate(user=self.student_user1)
+        resp_reply = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/reply/",
+            {"reply": "Fixed book spine damage with tape at library"},
+            format="json",
+        )
+        self.assertEqual(resp_reply.status_code, status.HTTP_200_OK)
+        self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.proof_notes, "Fixed book spine damage with tape at library")
+
+        resp_recheck = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/request-recheck/",
+            {"proof_notes": "Ready for re-inspection, thank you!"},
+            format="json",
+        )
+        self.assertEqual(resp_recheck.status_code, status.HTTP_200_OK)
+        self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.proof_notes, "Ready for re-inspection, thank you!")
+
+    def test_student_cannot_submit_without_file_and_without_notes(self):
+        self.client.force_authenticate(user=self.student_user1)
+        response = self.client.post(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/upload-proof/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
     def test_other_student_cannot_upload_proof_to_different_student(self):
         self.client.force_authenticate(user=self.student_user2)
         test_file = SimpleUploadedFile("hack.png", b"file_content", content_type="image/png")
