@@ -35,7 +35,10 @@ def validate_sequential_clearance(item: StudentClearanceItem) -> None:
                 "detail": (
                     f"Sequential clearance locked: '{first_blocking.requirement.name}' "
                     f"(Step {first_blocking.requirement.order_sequence}) must be cleared first."
-                )
+                ),
+                "blocked_by": first_blocking.requirement.name,
+                "blocking_step": first_blocking.requirement.order_sequence,
+                "blocking_item_id": first_blocking.id,
             }
         )
 
@@ -62,7 +65,8 @@ def evaluate_student_clearance_status(
         1 for item in items if item.status == StudentClearanceItem.ItemStatus.CLEARED
     )
     has_issues = any(
-        item.status == StudentClearanceItem.ItemStatus.HAS_ISSUE for item in items
+        item.status in [StudentClearanceItem.ItemStatus.HAS_ISSUE, StudentClearanceItem.ItemStatus.UNDER_REVIEW]
+        for item in items
     )
 
     old_status = student_clearance.status

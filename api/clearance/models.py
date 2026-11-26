@@ -171,6 +171,7 @@ class StudentClearanceItem(ActorStampedModel):
         PENDING = "pending", "Pending"
         CLEARED = "cleared", "Cleared"
         HAS_ISSUE = "has_issue", "Has Issue"
+        UNDER_REVIEW = "under_review", "Under Review"
 
     student_clearance = models.ForeignKey(
         StudentClearance,

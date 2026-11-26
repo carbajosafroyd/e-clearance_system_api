@@ -82,8 +82,8 @@ def send_clearance_completed_email(student_clearance: StudentClearance) -> None:
 
         pdf_bytes = generate_clearance_certificate_pdf(student_clearance)
 
-        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173") or "http://localhost:5173"
-        verify_url = f"{frontend_url.rstrip('/')}/clearance/verify/{student_clearance.verification_token}"
+        frontend_url = getattr(settings, "FRONTEND_URL", "https://e-clearance-dnsc.vercel.app") or "https://e-clearance-dnsc.vercel.app"
+        verify_url = f"{frontend_url.rstrip('/')}/verify/{student_clearance.verification_token}"
 
         student_name = f"{student.s_fname} {student.s_lname}".strip() or "Student"
         clearance_type_name = getattr(student_clearance.clearance_type, "name", "Clearance")
