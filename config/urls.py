@@ -21,8 +21,20 @@ from django.urls import path, include
 # FOR DOCUMENTATION :>
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+from rest_framework.permissions import AllowAny
 from api.views import HealthDetailView, ReadinessView, LivenessView
+from api.clearance.views import StudentClearanceViewSet
+
+public_verify_view = StudentClearanceViewSet.as_view(
+    {"get": "verify"},
+    permission_classes=[AllowAny],
+)
+
 urlpatterns = [
+    path("verify/<str:verification_token>/", public_verify_view, name="public-verify"),
+    path("verify/<str:verification_token>", public_verify_view, name="public-verify-noslash"),
+    path("clearance/verify/<str:verification_token>/", public_verify_view, name="public-clearance-verify"),
+    path("clearance/verify/<str:verification_token>", public_verify_view, name="public-clearance-verify-noslash"),
     path("healthz", LivenessView.as_view(), name="healthz"),
     path("healthz/", LivenessView.as_view(), name="healthz-slash"),
     path("health/", HealthDetailView.as_view(), name="detail"),

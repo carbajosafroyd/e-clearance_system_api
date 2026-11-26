@@ -392,6 +392,8 @@ class SequentialClearanceTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Sequential clearance locked", str(response.data))
         self.assertIn("Library Clearance", str(response.data))
+        self.assertEqual(response.data.get("blocked_by"), "Library Clearance")
+        self.assertEqual(int(response.data.get("blocking_step")), 1)
 
         # Check item remains pending in DB
         self.item_dean.refresh_from_db()
@@ -621,6 +623,7 @@ class DeficiencyAndProofTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.status, StudentClearanceItem.ItemStatus.UNDER_REVIEW)
         self.assertEqual(self.item_library1.proof_attachment, "clearance/proofs/proof1")
         self.assertEqual(self.item_library1.cloudinary_version, 1)
         self.assertEqual(self.item_library1.proof_notes, "Paid library penalty")
@@ -644,6 +647,7 @@ class DeficiencyAndProofTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.status, StudentClearanceItem.ItemStatus.UNDER_REVIEW)
         self.assertIsNone(self.item_library1.proof_attachment)
         self.assertEqual(self.item_library1.proof_notes, "Paid over the counter, Reference #987654")
         self.assertIsNotNone(self.item_library1.proof_uploaded_at)
@@ -733,6 +737,7 @@ class DeficiencyAndProofTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.status, StudentClearanceItem.ItemStatus.PENDING)
         self.assertIsNone(self.item_library1.proof_attachment)
         self.assertIsNone(self.item_library1.cloudinary_version)
         self.assertIsNone(self.item_library1.proof_notes)
@@ -748,6 +753,17 @@ class DeficiencyAndProofTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already cleared", str(response.data))
+
+    def test_deficiency_alias_supported_in_serializer(self):
+        self.client.force_authenticate(user=self.librarian_user)
+        response = self.client.patch(
+            f"/api/v1/student-clearance-items/{self.item_library1.id}/",
+            {"status": "deficiency", "remarks": "Book damaged"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.item_library1.refresh_from_db()
+        self.assertEqual(self.item_library1.status, StudentClearanceItem.ItemStatus.HAS_ISSUE)
+        self.assertEqual(self.item_library1.remarks, "Book damaged")
 
 
 class CertificateAndVerificationTests(TestCase):
@@ -906,6 +922,52 @@ class CertificateAndVerificationTests(TestCase):
         response = self.client.get(f"/api/v1/student-clearances/verify/{random_token}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertFalse(response.data["valid"])
+
+    def test_public_verification_html_rendering(self):
+        self.item1.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item1.cleared_by_user = self.librarian_user
+        self.item1.cleared_at = timezone.now()
+        self.item1.save()
+
+        self.item2.status = StudentClearanceItem.ItemStatus.CLEARED
+        self.item2.cleared_by_user = self.dean_user
+        self.item2.cleared_at = timezone.now()
+        self.item2.save()
+
+        self.student_clearance.status = StudentClearance.ClearanceStatus.COMPLETED
+        self.student_clearance.date_completed = timezone.now()
+        self.student_clearance.save()
+
+        self.client.logout()
+        token = str(self.student_clearance.verification_token)
+        # 1. API endpoint with Accept: text/html
+        response = self.client.get(
+            f"/api/v1/student-clearances/verify/{token}/",
+            HTTP_ACCEPT="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("text/html", response["Content-Type"])
+        self.assertIn("OFFICIAL CLEARANCE VERIFIED", response.content.decode("utf-8"))
+        self.assertIn("Crisostomo Ibarra", response.content.decode("utf-8"))
+        self.assertIn("2024777777", response.content.decode("utf-8"))
+
+        # 2. Root short URL /verify/<token>/
+        response_root = self.client.get(
+            f"/verify/{token}/",
+            HTTP_ACCEPT="text/html",
+        )
+        self.assertEqual(response_root.status_code, status.HTTP_200_OK)
+        self.assertIn("text/html", response_root["Content-Type"])
+        self.assertIn("OFFICIAL CLEARANCE VERIFIED", response_root.content.decode("utf-8"))
+
+    def test_public_verification_invalid_token_html(self):
+        self.client.logout()
+        import uuid
+        random_token = str(uuid.uuid4())
+        response = self.client.get(f"/verify/{random_token}/", HTTP_ACCEPT="text/html")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("text/html", response["Content-Type"])
+        self.assertIn("UNVERIFIED CLEARANCE RECORD", response.content.decode("utf-8"))
 
     def test_full_clearance_lifecycle_e2e(self):
         # 1. Student checks my clearances

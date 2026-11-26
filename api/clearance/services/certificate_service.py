@@ -42,9 +42,9 @@ def generate_clearance_certificate_pdf(student_clearance: StudentClearance) -> b
     school = getattr(institute, "school", None) if institute else None
 
     # Generate QR Code for digital verification
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000") or "http://localhost:3000"
+    frontend_url = getattr(settings, "FRONTEND_URL", "https://e-clearance-dnsc.vercel.app") or "https://e-clearance-dnsc.vercel.app"
     frontend_url = frontend_url.rstrip("/")
-    verify_url = f"{frontend_url}/clearance/verify/{student_clearance.verification_token}"
+    verify_url = f"{frontend_url}/verify/{student_clearance.verification_token}"
 
     qr = segno.make(verify_url, error="h")
     qr_buffer = io.BytesIO()

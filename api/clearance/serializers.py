@@ -405,6 +405,15 @@ class StudentClearanceItemWriteSerializer(serializers.ModelSerializer):
             "proof_uploaded_at",
         ]
 
+    def to_internal_value(self, data):
+        if hasattr(data, "copy"):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if "status" in data and data["status"] == "deficiency":
+            data["status"] = StudentClearanceItem.ItemStatus.HAS_ISSUE
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         student_clearance = attrs.get("student_clearance") or getattr(self.instance, "student_clearance", None)
         requirement = attrs.get("requirement") or getattr(self.instance, "requirement", None)

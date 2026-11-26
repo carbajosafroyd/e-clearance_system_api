@@ -555,6 +555,19 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
     ]
     ordering_fields = ["date_initiated", "date_completed", "status"]
 
+    def perform_content_negotiation(self, request, force=False):
+        if getattr(self, "action", None) == "verify":
+            accept = request.META.get("HTTP_ACCEPT", "") or request.headers.get("Accept", "")
+            if "text/html" in accept and request.query_params.get("format") != "json":
+                from rest_framework.renderers import TemplateHTMLRenderer
+                return (TemplateHTMLRenderer(), "text/html")
+        return super().perform_content_negotiation(request, force=force)
+
+    def get_permissions(self):
+        if getattr(self, "action", None) == "verify":
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.action == "create":
             return StudentClearanceWriteSerializer
@@ -709,10 +722,21 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
     )
     def verify(self, request, verification_token=None):
         import uuid
+        from django.shortcuts import render
+
+        accept_header = request.headers.get("Accept", "")
+        wants_html = "text/html" in accept_header and request.query_params.get("format") != "json"
 
         try:
             token_uuid = uuid.UUID(verification_token)
         except (ValueError, TypeError, AttributeError):
+            if wants_html:
+                return render(
+                    request,
+                    "clearance/verify.html",
+                    {"valid": False, "detail": "Invalid verification token format."},
+                    status=404,
+                )
             return Response(
                 {"valid": False, "detail": "Invalid verification token format."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -737,6 +761,13 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
         )
 
         if not clearance or clearance.status != StudentClearance.ClearanceStatus.COMPLETED:
+            if wants_html:
+                return render(
+                    request,
+                    "clearance/verify.html",
+                    {"valid": False, "detail": "Clearance not found or has not been completed."},
+                    status=404,
+                )
             return Response(
                 {"valid": False, "detail": "Clearance not found or has not been completed."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -788,6 +819,9 @@ class StudentClearanceViewSet(viewsets.ModelViewSet):
             "date_completed": clearance.date_completed,
             "signatories": signatories,
         }
+
+        if wants_html:
+            return render(request, "clearance/verify.html", payload)
 
         return Response(payload, status=status.HTTP_200_OK)
 
@@ -951,7 +985,10 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
                             "detail": (
                                 f"Sequential clearance locked: '{first_blocking.requirement.name}' "
                                 f"(Step {first_blocking.requirement.order_sequence}) must be cleared first."
-                            )
+                            ),
+                            "blocked_by": first_blocking.requirement.name,
+                            "blocking_step": first_blocking.requirement.order_sequence,
+                            "blocking_item_id": first_blocking.id,
                         }
                     )
             serializer.validated_data["cleared_by_user"] = user
@@ -974,6 +1011,7 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
         elif target_status in [
             StudentClearanceItem.ItemStatus.PENDING,
             StudentClearanceItem.ItemStatus.HAS_ISSUE,
+            StudentClearanceItem.ItemStatus.UNDER_REVIEW,
         ]:
             # Reset clearance audit fields if item is reverted/flagged
             serializer.validated_data["cleared_by_user"] = None
@@ -1098,10 +1136,14 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
         if proof_notes:
             item.proof_notes = proof_notes
 
+        if item.status != StudentClearanceItem.ItemStatus.CLEARED:
+            item.status = StudentClearanceItem.ItemStatus.UNDER_REVIEW
+
         item.proof_uploaded_at = timezone.now()
         item.updated_by = user
         item.save(
             update_fields=[
+                "status",
                 "proof_attachment",
                 "cloudinary_version",
                 "proof_notes",
@@ -1110,6 +1152,8 @@ class StudentClearanceItemViewSet(viewsets.ModelViewSet):
                 "updated_at",
             ]
         )
+
+        evaluate_student_clearance_status(item.student_clearance, actor=user)
 
         # Notify signatories
         from api.clearance.services.notification_service import notify_proof_submitted
