@@ -251,6 +251,144 @@ class AccessEndpointTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_assign_signatory_role_to_admin_user_returns_400(self):
+        actor = User.objects.create_user(
+            username="inst_admin_actor", password="pw", institute=self.institute
+        )
+        assign_role(actor, Roles.INSTITUTE_ADMIN)
+        self.client.force_authenticate(actor)
+
+        for admin_role in (
+            Roles.INSTITUTE_ADMIN,
+            Roles.CLEARANCE_ADMIN,
+            Roles.INSTITUTE_STAFF,
+        ):
+            target = User.objects.create_user(
+                username=f"admin_{admin_role.lower().replace(' ', '_')}",
+                password="pw",
+                institute=self.institute,
+            )
+            assign_role(target, admin_role)
+
+            resp_post = self.client.post(
+                "/api/v1/access/assign/",
+                {"user_id": target.pk, "roles": [Roles.LIBRARIAN]},
+                format="json",
+            )
+            self.assertEqual(resp_post.status_code, 400)
+            self.assertIn(
+                "Admin and superadmin accounts cannot be assigned to signatory roles.",
+                resp_post.json()["errors"]["detail"],
+            )
+
+            resp_patch = self.client.patch(
+                "/api/v1/access/assign/",
+                {"user_id": target.pk, "roles": [Roles.DEAN]},
+                format="json",
+            )
+            self.assertEqual(resp_patch.status_code, 400)
+
+            target.refresh_from_db()
+            self.assertEqual(
+                list(target.groups.values_list("name", flat=True)), [admin_role]
+            )
+
+    def test_assign_signatory_role_to_superuser_returns_400(self):
+        root = User.objects.create_superuser(
+            username="root_actor",
+            email="root_actor@example.com",
+            password="pw",
+            institute=self.institute,
+            school=self.school,
+        )
+        inst_admin = User.objects.create_user(
+            username="inst_admin_check", password="pw", institute=self.institute
+        )
+        assign_role(inst_admin, Roles.INSTITUTE_ADMIN)
+
+        for caller in (root, inst_admin):
+            self.client.force_authenticate(caller)
+            response = self.client.post(
+                "/api/v1/access/assign/",
+                {"user_id": root.pk, "roles": [Roles.LIBRARIAN]},
+                format="json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(
+                "Admin and superadmin accounts cannot be assigned to signatory roles.",
+                response.json()["errors"]["detail"],
+            )
+            self.assertEqual(list(root.groups.values_list("name", flat=True)), [])
+
+    def test_assign_mixed_admin_and_signatory_roles_returns_400(self):
+        actor = User.objects.create_user(
+            username="inst_admin_mix", password="pw", institute=self.institute
+        )
+        assign_role(actor, Roles.INSTITUTE_ADMIN)
+        self.client.force_authenticate(actor)
+
+        regular = User.objects.create_user(
+            username="regular_mix", password="pw", institute=self.institute
+        )
+        resp_new_mix = self.client.post(
+            "/api/v1/access/assign/",
+            {"user_id": regular.pk, "roles": [Roles.INSTITUTE_STAFF, Roles.LIBRARIAN]},
+            format="json",
+        )
+        self.assertEqual(resp_new_mix.status_code, 400)
+        self.assertIn(
+            "Admin and superadmin accounts cannot be assigned to signatory roles.",
+            resp_new_mix.json()["errors"]["detail"],
+        )
+        self.assertEqual(list(regular.groups.values_list("name", flat=True)), [])
+
+        signatory = User.objects.create_user(
+            username="existing_cashier", password="pw", institute=self.institute
+        )
+        assign_role(signatory, Roles.CASHIER)
+        resp_existing_sig = self.client.post(
+            "/api/v1/access/assign/",
+            {"user_id": signatory.pk, "roles": [Roles.CLEARANCE_ADMIN, Roles.CASHIER]},
+            format="json",
+        )
+        self.assertEqual(resp_existing_sig.status_code, 400)
+        self.assertEqual(
+            list(signatory.groups.values_list("name", flat=True)), [Roles.CASHIER]
+        )
+
+    def test_assign_signatory_role_to_regular_non_admin_user_succeeds(self):
+        actor = User.objects.create_user(
+            username="inst_admin_ok", password="pw", institute=self.institute
+        )
+        assign_role(actor, Roles.INSTITUTE_ADMIN)
+        target = User.objects.create_user(
+            username="regular_staff", password="pw", institute=self.institute
+        )
+        self.client.force_authenticate(actor)
+
+        response = self.client.post(
+            "/api/v1/access/assign/",
+            {"user_id": target.pk, "roles": [Roles.LIBRARIAN]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        target.refresh_from_db()
+        self.assertEqual(
+            list(target.groups.values_list("name", flat=True)), [Roles.LIBRARIAN]
+        )
+        self.assertTrue(target.is_staff)
+
+        resp_patch = self.client.patch(
+            "/api/v1/access/assign/",
+            {"user_id": target.pk, "roles": [Roles.DEAN]},
+            format="json",
+        )
+        self.assertEqual(resp_patch.status_code, 200)
+        target.refresh_from_db()
+        self.assertEqual(
+            list(target.groups.values_list("name", flat=True)), [Roles.DEAN]
+        )
+
 
 class PermissionCodenameTests(TestCase):
     def test_superusers_report_the_whole_catalog(self):

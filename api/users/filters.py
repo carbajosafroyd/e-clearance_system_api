@@ -1,6 +1,7 @@
 import django_filters
 from django.db.models import Q
 
+from api.rbac.roles import ADMIN_GROUP_ALIASES
 from .models import User
 
 
@@ -43,6 +44,7 @@ class UserFilterSet(django_filters.FilterSet):
     #: Accounts with no role at all - the ones an administrator has to fix
     #: before their owner can do anything.
     has_role = django_filters.BooleanFilter(method="filter_has_role")
+    exclude_admins = django_filters.BooleanFilter(method="filter_exclude_admins")
     has_institute = django_filters.BooleanFilter(
         field_name="institute", lookup_expr="isnull", exclude=True
     )
@@ -74,3 +76,11 @@ class UserFilterSet(django_filters.FilterSet):
         if value:
             return queryset.filter(groups__isnull=False).distinct()
         return queryset.filter(groups__isnull=True)
+
+    def filter_exclude_admins(self, queryset, name, value):
+        if not value:
+            return queryset
+        admin_group_q = Q()
+        for group_name in ADMIN_GROUP_ALIASES:
+            admin_group_q |= Q(groups__name__iexact=group_name)
+        return queryset.filter(is_superuser=False).exclude(admin_group_q).distinct()

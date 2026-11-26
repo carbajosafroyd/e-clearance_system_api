@@ -37,6 +37,7 @@ from .permissions import (
 )
 from .roles import ROLE_DEFINITIONS, delegable_roles, resolve_permissions
 from .scoping import account_in_scope
+from .services import role_separation_error
 from .serializers import (
     AssignRoleSerializer,
     FeatureSerializer,
@@ -175,7 +176,7 @@ class AccessViewSet(viewsets.ViewSet):
             "school administrator - or strip that from one."
         ),
     )
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post", "patch"])
     def assign(self, request):
         """Replace a user's roles with the given list."""
         serializer = AssignRoleSerializer(data=request.data)
@@ -198,18 +199,28 @@ class AccessViewSet(viewsets.ViewSet):
                 {"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        if not request.user.is_superuser and target.is_superuser:
-            return Response(
-                {"detail": "Only a superuser may change a superuser's roles."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         wanted = serializer.validated_data["roles"]
         unknown = [name for name in wanted if name not in ROLE_DEFINITIONS]
         if unknown:
             return Response(
                 {"detail": f"Unknown role(s): {', '.join(unknown)}."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Enforce strict separation between admin/superuser accounts and
+        # clearance signatory roles before checking delegation rank so
+        # invalid mixed/admin+signatory attempts consistently return 400.
+        separation_error = role_separation_error(target, wanted)
+        if separation_error:
+            return Response(
+                {"detail": separation_error},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not request.user.is_superuser and target.is_superuser:
+            return Response(
+                {"detail": "Only a superuser may change a superuser's roles."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         before = sorted(target.groups.values_list("name", flat=True))

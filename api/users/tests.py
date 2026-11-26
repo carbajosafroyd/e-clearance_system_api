@@ -430,3 +430,55 @@ class PasswordPepperTests(TestCase):
             self.assertTrue(user.check_password(token.raw_password))
             user.refresh_from_db()
             self.assertEqual(user.pepper_version, 4)
+
+
+class UserFilterExclusionTests(TestCase):
+    def test_exclude_admins_filters_out_superusers_and_admin_groups(self):
+        from api.rbac.roles import Roles
+        from api.rbac.services import assign_role
+
+        school = School.objects.create(school_name="Filter School", short_name="FS", location="Panabo")
+        institute = Institute.objects.create(institute_name="Filter Inst", acronym="FI", school=school)
+
+        actor = User.objects.create_user(
+            username="filter_inst_admin", email="fadmin@example.com", password="pw", institute=institute
+        )
+        assign_role(actor, Roles.INSTITUTE_ADMIN)
+
+        superuser = User.objects.create_superuser(
+            username="filter_super", email="fsuper@example.com", password="pw", institute=institute, school=school
+        )
+        clearance_admin = User.objects.create_user(
+            username="filter_cadmin", email="fcadmin@example.com", password="pw", institute=institute
+        )
+        assign_role(clearance_admin, Roles.CLEARANCE_ADMIN)
+
+        inst_staff = User.objects.create_user(
+            username="filter_staff", email="fstaff@example.com", password="pw", institute=institute
+        )
+        assign_role(inst_staff, Roles.INSTITUTE_STAFF)
+
+        librarian = User.objects.create_user(
+            username="filter_librarian", email="flib@example.com", password="pw", institute=institute
+        )
+        assign_role(librarian, Roles.LIBRARIAN)
+
+        candidate = User.objects.create_user(
+            username="filter_candidate", email="fcand@example.com", password="pw", institute=institute
+        )
+
+        client = APIClient()
+        client.force_authenticate(actor)
+
+        resp_filtered = client.get("/api/v1/users/?exclude_admins=true")
+        self.assertEqual(resp_filtered.status_code, 200)
+        payload = resp_filtered.json()
+        rows = payload["data"]["data"]
+        returned_usernames = {row["username"] for row in rows}
+
+        self.assertIn(librarian.username, returned_usernames)
+        self.assertIn(candidate.username, returned_usernames)
+        self.assertNotIn(actor.username, returned_usernames)
+        self.assertNotIn(superuser.username, returned_usernames)
+        self.assertNotIn(clearance_admin.username, returned_usernames)
+        self.assertNotIn(inst_staff.username, returned_usernames)

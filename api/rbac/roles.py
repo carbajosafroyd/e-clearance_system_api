@@ -90,6 +90,45 @@ CLEARANCE_SIGNATORY_ROLES = (
     Roles.GOVERNOR,
 )
 
+#: Administrative / staff groups kept strictly separated from clearance signatory roles.
+ADMIN_ROLE_NAMES: tuple[str, ...] = (
+    Roles.SCHOOL_ADMIN,
+    Roles.INSTITUTE_ADMIN,
+    Roles.CLEARANCE_ADMIN,
+    Roles.INSTITUTE_STAFF,
+)
+
+ADMIN_GROUP_ALIASES: frozenset[str] = frozenset(
+    {
+        *(role.lower() for role in ADMIN_ROLE_NAMES),
+        "institute staff",
+        "collection management system admins",
+        "locker management system admins",
+    }
+)
+
+SIGNATORY_GROUP_ALIASES: frozenset[str] = frozenset(
+    {
+        *(role.lower() for role in CLEARANCE_SIGNATORY_ROLES),
+        "advisors",
+        "librarian",
+        "cashier",
+        "adviser",
+        "advisor",
+        "governor",
+        "dean",
+        "program chair",
+    }
+)
+
+
+def is_admin_group_name(name: str) -> bool:
+    return str(name or "").strip().lower() in ADMIN_GROUP_ALIASES
+
+
+def is_signatory_group_name(name: str) -> bool:
+    return str(name or "").strip().lower() in SIGNATORY_GROUP_ALIASES
+
 
 @dataclass(frozen=True)
 class RoleSpec:

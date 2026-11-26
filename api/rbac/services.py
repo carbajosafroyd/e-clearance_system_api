@@ -17,6 +17,8 @@ from django.db import transaction
 
 from .roles import (
     ROLE_DEFINITIONS,
+    is_admin_group_name,
+    is_signatory_group_name,
     permission_enabled,
     resolve_permissions,
     staff_roles,
@@ -197,3 +199,30 @@ def assign_role(user, role_name: str) -> None:
     # and then checks a permission on the same object sees the old answer.
     for attribute in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
         user.__dict__.pop(attribute, None)
+
+
+def role_separation_error(target, wanted_roles) -> str | None:
+    """Return a validation error message if assigning `wanted_roles` to `target` violates admin/signatory separation."""
+    wanted_list = [str(name).strip() for name in wanted_roles if str(name).strip()]
+    wanted_admin = [name for name in wanted_list if is_admin_group_name(name)]
+    wanted_signatory = [name for name in wanted_list if is_signatory_group_name(name)]
+
+    if getattr(target, "is_superuser", False) and wanted_signatory:
+        return "Admin and superadmin accounts cannot be assigned to signatory roles."
+
+    if wanted_admin and wanted_signatory:
+        return (
+            "Admin and superadmin accounts cannot be assigned to signatory roles. "
+            "Cannot assign both admin and signatory roles to the same user."
+        )
+
+    if target is not None and getattr(target, "pk", None):
+        current_roles = list(target.groups.values_list("name", flat=True))
+        current_admin = [name for name in current_roles if is_admin_group_name(name)]
+        if current_admin and wanted_signatory:
+            return (
+                "Admin and superadmin accounts cannot be assigned to signatory roles. "
+                "Remove admin roles before assigning signatory roles."
+            )
+
+    return None
